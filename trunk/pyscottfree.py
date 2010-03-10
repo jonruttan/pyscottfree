@@ -31,7 +31,7 @@
 __author__ = 'Jon Ruttan'
 __copyright__ = 'Copyright (C) 2009 Jon Ruttan'
 __license__ = 'Distributed under the GNU software license'
-__version__ = '0.6.8'
+__version__ = '0.6.9'
 
 import sys
 import os
@@ -188,7 +188,7 @@ class Item:
 
 	def read(self, file):
 		words = read_string(file).split('/')
-		self.text = words[0] 
+		self.text = words[0]
 
 		# Some games use // to mean no auto get/drop word!
 		if len(words) > 1 and len(words[1]) and not words[1][1] in ('/', '*'):
@@ -294,7 +294,7 @@ class Saga:
 
 			# Perform action responses
 			'perform_actions': [
-				"I don't understand your command. ", 
+				"I don't understand your command. ",
 				"I can't do that yet. "
 			],
 
@@ -457,10 +457,10 @@ Adventure: {0.adventure}
 			str = raw_input(str)
 
 		return str.strip()
-	
+
 	def count_carried(self):
 		return reduce(lambda count, item: count + item.location == LOC_CARRIED and 1 or 0, self.items, 0)
-	
+
 	def map_synonym(self, word):
 		for noun in self.nouns:
 			if not len(noun):
@@ -478,7 +478,7 @@ Adventure: {0.adventure}
 
 	def match_up_item(self, text, loc):
 		word = self.map_synonym(text)
-		
+
 		if word == None:
 			word = text
 
@@ -489,7 +489,7 @@ Adventure: {0.adventure}
 
 		return -1
 
-	
+
 	def load_database(self, filename = None):
 		if filename == None:
 			filename = self.input('Filename: ').strip()
@@ -507,7 +507,7 @@ Adventure: {0.adventure}
 
 		# Generate a savename from the filename by replacing the extension
 		self.savename = os.path.join(self.savepath,
-				 os.path.splitext(os.path.basename(filename))[0] + '.sav') 
+				 os.path.splitext(os.path.basename(filename))[0] + '.sav')
 
 		keys = [0, 'ni', 'na', 'nw', 'nr', 'mc', 'pr', 'tr', 'wl', 'lt', 'mn', 'trm']
 		data = {}
@@ -526,7 +526,7 @@ Adventure: {0.adventure}
 		self.light_time = self.light_refill = data['lt']
 		self.messages = [None] * (data['mn'] + 1)
 		self.treasure_room = data['trm']
-	
+
 		if self.options & FLAG_VERBOSE or self.options & FLAG_DEBUGGING:
 			print 'Reading {0:d} actions.'.format(data['na'])
 		for action in self.actions:
@@ -571,7 +571,7 @@ Adventure: {0.adventure}
 
 		self.redraw = True
 
-	
+
 	def look(self):
 		if self.options & FLAG_USE_CURSES:
 			self.win[0].erase()
@@ -621,7 +621,7 @@ Adventure: {0.adventure}
 		if self.options & FLAG_TRS80_STYLE:
 			self.output(self.string('trs80 line'), 0, False)
 
-	
+
 	def which_word(self, word, list):
 		if not word:
 			return -1
@@ -640,8 +640,8 @@ Adventure: {0.adventure}
 				return id
 
 		return -1
-	
-	
+
+
 	def get_input(self):
 		while True:
 			while True:
@@ -656,7 +656,7 @@ Adventure: {0.adventure}
 
 			noun = len(words) > 1 and words[1] or None
 
-			if verb.startswith('~'):
+			if verb.startswith(':'):
 				actions = {
 					'load': lambda filename: self.load_database(filename),
 					'restore': lambda filename: self.load_game(filename),
@@ -684,10 +684,10 @@ Adventure: {0.adventure}
 				self.output(self.string('unknown word'))
 			else:
 				break
-		
+
 		self.noun_text = noun	# Needed by GET/DROP hack
 		return (verb_id, noun_id)
-	
+
 	def save_game(self, filename = None):
 		if filename == None:
 			filename = self.input(self.string('filename').format(self.savename)).strip()
@@ -702,7 +702,7 @@ Adventure: {0.adventure}
 
 		try:
 			file = open(filename, 'w')
-		except IOError as (errno, strerror):
+		except IOError:
 			self.output(self.string('save error'))
 
 		for i in range(0, 16):
@@ -721,7 +721,7 @@ Adventure: {0.adventure}
 		file.close()
 		self.output(self.string('save ok'))
 
-	
+
 	def load_game(self, filename = None):
 		if filename == None:
 			filename = self.input(self.string('filename').format(self.savename)).strip()
@@ -733,7 +733,7 @@ Adventure: {0.adventure}
 
 		try:
 			file = open(filename,'r')
-		except IOError as (errno, strerror):
+		except IOError:
 			self.fatal(self.string('load error'))
 
 		self.savename = filename
@@ -769,7 +769,7 @@ Adventure: {0.adventure}
 		self.output(self.string('game over'))
 		self.exit(0)
 
-	
+
 	def perform_line(self, action):
 		continuation = 0
 		params = [None] * 5
@@ -995,11 +995,11 @@ Adventure: {0.adventure}
 						.format(act, params[param_id], params[param_id + 1]))
 
 		return 1 + continuation
-	
-	
+
+
 	def perform_actions(self, verb_id, noun_id, enable_sysfunc = True):
 		dark = bool(self.bit_flags & FLAG_DARK)
-	
+
 		if verb_id == 1 and noun_id == -1:
 			self.output(self.string('need dir'))
 			return 0
@@ -1252,8 +1252,8 @@ Options:
 			else:
 				usage(argv[0])
 				sys.exit(2)
-			
-		if not len(args):	
+
+		if not len(args):
 			#usage(argv[0])
 			#sys.exit(1)
 			filename = raw_input('Filename: ').strip()
