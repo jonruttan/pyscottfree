@@ -31,7 +31,7 @@
 __author__ = 'Jon Ruttan'
 __copyright__ = 'Copyright (C) 2009 Jon Ruttan'
 __license__ = 'Distributed under the GNU software license'
-__version__ = '0.6.9'
+__version__ = '0.6.10'
 
 import sys
 import os
@@ -969,7 +969,8 @@ Adventure: {0.adventure}
 			elif act == 84:
 				self.output(self.noun_text)
 			elif act == 85:
-				self.output(self.noun_text + '\n')
+				self.output(self.noun_text)
+				self.output('\n')
 			elif act == 86:
 				self.output('\n')
 			elif act == 87:
