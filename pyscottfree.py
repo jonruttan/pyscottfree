@@ -29,9 +29,9 @@
 #	Release
 
 __author__ = 'Jon Ruttan'
-__copyright__ = 'Copyright (C) 2009 Jon Ruttan'
+__copyright__ = 'Copyright (C) 2010 Jon Ruttan'
 __license__ = 'Distributed under the GNU software license'
-__version__ = '0.6.10'
+__version__ = '0.7.0'
 
 import sys
 import os
@@ -92,41 +92,44 @@ def random_percent(n):
 	return random.randint(0, 99) < n
 
 def read_next_item(file, quote = None, type = None, bytes = 1):
-	if not len(read_next_item.str):
+	while not len(read_next_item.string):
 		# Read in the next line and strip the whitespace
-		read_next_item.str = file.readline().strip()
+		read_next_item.string = file.readline().strip()
 
 	if quote != None:
 		# If the string doesn't start with a quote, complain and exit
-		if not read_next_item.str.startswith(quote):
-			fatal('Initial quote({0}) expected -- {1}'.format(quote, read_next_item.str))
+		if not read_next_item.string.startswith(quote):
+			fatal('Initial quote({0}) expected -- {1}'.format(quote, read_next_item.string))
 
 		while True:
-			end = read_next_item.str[1:].find(quote)
+			end = read_next_item.string[1:].find(quote)
 			# If the string doesn't end with a quote, complain and exit
 			if end == -1:
-				read_next_item.str += '\n' + file.readline().strip()
+				read_next_item.string += '\n' + file.readline().strip()
 			else:
 				end += 2
 				break
 
-		str = read_next_item.str[:end].strip('"').replace('`', '"')
+		string = read_next_item.string[:end].strip('"').replace('`', '"')
 
 	else:
-		end = read_next_item.str.find(' ')
+		end = read_next_item.string.find(' ')
 		if end == -1:
-			end = len(read_next_item.str)
+			end = len(read_next_item.string)
 
-		str = read_next_item.str[:end]
+		string = read_next_item.string[:end]
 
-		if str == '-1':
-			str = (1 << (bytes << 3)) -1
+#		if string == '-1':
+#			string = (1 << (bytes << 3)) -1
 
-	read_next_item.str = read_next_item.str[end+1:]
+		if string == str((1 << (bytes << 3)) -1):
+			string = '-1'
 
-	return str
+	read_next_item.string = read_next_item.string[end+1:]
 
-read_next_item.str = ''
+	return string
+
+read_next_item.string = ''
 
 def read_number(file, bytes = 1):
 	return int(read_next_item(file))
@@ -770,13 +773,19 @@ Adventure: {0.adventure}
 		self.exit(0)
 
 
+	def test_light(self, *locations):
+		if ITEM_LIGHT < len(self.items) \
+				and self.items[ITEM_LIGHT].location in locations:
+			return True
+
+		return False
+
 	def perform_line(self, action):
 		continuation = 0
 		params = [None] * 5
 		param_id = 0
 		for i in action.condition:
-			dv = i / 20
-			cv = i % 20
+			(dv, cv) = divmod(i, 20)
 
 			if self.options & FLAG_DEBUGGING:
 				sys.stderr.write('Perform Line - cv: {0}, dv: {1}'.format(cv, dv))
@@ -812,188 +821,183 @@ Adventure: {0.adventure}
 
 		# Actions
 		param_id = 0
-		acts = [
-			action.action[0] / 150,
-			action.action[0] % 150,
-			action.action[1] / 150,
-			action.action[1] % 150
-		]
-		for act in acts:
-			if self.options & FLAG_DEBUGGING:
-				sys.stderr.write('Action - {0}'.format(act))
+		for action in action.action:
+			for act in divmod(action, 150):
+				if self.options & FLAG_DEBUGGING:
+					sys.stderr.write('Action - {0}'.format(act))
 
-			if act >= 1 and act < 52:
-				self.output(self.messages[act] + '\n')
-			elif act > 101:
-				self.output(self.messages[act - 50] + '\n')
-			elif act == 0: # NOP
-				pass
-			elif act == 52:
-				if self.count_carried() == self.max_carry:
-					self.output(self.string('overloaded', FLAG_YOUARE))
-				else:
+				if act >= 1 and act < 52:
+					self.output(self.messages[act] + '\n')
+				elif act > 101:
+					self.output(self.messages[act - 50] + '\n')
+				elif act == 0: # NOP
+					pass
+				elif act == 52:
+					if self.count_carried() == self.max_carry:
+						self.output(self.string('overloaded', FLAG_YOUARE))
+					else:
+						if self.items[params[param_id]].location == self.player_room:
+							self.redraw = True
+						self.items[params[param_id]].location = LOC_CARRIED
+						param_id += 1
+				elif act == 53:
+					self.redraw = True
+					self.items[params[param_id]].location = self.player_room
+					param_id += 1
+				elif act == 54:
+					self.redraw = True
+					self.player_room = params[param_id]
+					param_id += 1
+				elif act == 55 or act == 59:
+					if self.items[params[param_id]].location == self.player_room:
+						self.redraw = True
+					self.items[params[param_id]].location = 0
+					param_id += 1
+				elif act == 56:
+					self.bit_flags |= FLAG_DARK
+				elif act == 57:
+					self.bit_flags &= ~FLAG_DARK
+				elif act == 58:
+					self.bit_flags |= (1 << params[param_id])
+					param_id += 1
+				elif act == 60:
+					self.bit_flags &= ~(1 << params[param_id])
+					param_id += 1
+				elif act == 61:
+					self.output(self.string('dead', FLAG_YOUARE))
+					self.bit_flags &= ~FLAG_DARK
+					self.player_room = len(self.rooms) -1	# It seems to be what the code says!
+					self.look()
+				elif act == 62:
+					# Bug fix for some systems - before it could get parameters wrong
+					self.items[params[param_id]].location = params[param_id + 1]
+					param_id += 2
+					self.redraw = True
+				elif act == 63:
+					self.done_game()
+				elif act == 64:
+					self.look()
+				elif act == 65:
+					treasures = reduce(lambda count, item:
+								count + (item.location == self.treasure_room
+										and item.text.startswith('*') and 1 or 0),
+							self.items, 0)
+					self.output(self.string('treasures').format(
+							self.string('have', FLAG_YOUARE),
+							treasures,
+							treasures * 100 / self.treasures
+						))
+
+					if treasures == self.treasures:
+						self.output(self.string('well done'))
+						self.done_game()
+				elif act == 66:
+					carry = map(lambda item: item.text, filter(lambda item: item.location == LOC_CARRIED, self.items))
+					if len(carry):
+						carry = self.string('list separator', FLAG_TRS80_STYLE).join(carry)
+					else:
+						carry = self.string('nothing')
+
+					self.output(self.string('carry', FLAG_YOUARE).format(carry))
+				elif act == 67:
+					self.bit_flags |= 1
+				elif act == 68:
+					self.bit_flags &= ~1
+				elif act == 69:
+					self.light_time = self.light_refill
+					if self.test_light(self.player_room):
+						self.redraw = True
+
+					self.items[ITEM_LIGHT].location = LOC_CARRIED
+					self.bit_flags &= ~FLAG_DARK
+				elif act == 70:
+					self.clear_screen()	# pdd.
+					self.output_reset()
+				elif act == 71:
+					self.save_game()
+				elif act == 72:
+					i = params[param_id:param_id +2]
+					param_id += 2
+					if self.items[i[0]].location == self.player_room \
+							or self.items[i[1]].location == self.player_room:
+						self.redraw = True
+
+					(self.items[i[0]].location, self.items[i[1]].location) \
+							= (self.items[i[1]].location, self.items[i[0]].location)
+				elif act == 73:
+					continuation = 1
+				elif act == 74:
 					if self.items[params[param_id]].location == self.player_room:
 						self.redraw = True
 					self.items[params[param_id]].location = LOC_CARRIED
 					param_id += 1
-			elif act == 53:
-				self.redraw = True
-				self.items[params[param_id]].location = self.player_room
-				param_id += 1
-			elif act == 54:
-				self.redraw = True
-				self.player_room = params[param_id]
-				param_id += 1
-			elif act == 55 or act == 59:
-				if self.items[params[param_id]].location == self.player_room:
+				elif act == 75:
+					i = params[param_id:param_id +2]
+					param_id += 2
+					if self.items[i[0]].location == self.player_room \
+							or self.items[i[1]].location == self.player_room:
+						self.redraw = True
+					self.items[i[0]].location = self.items[i[1]].location
+				elif act == 76:		# Looking at adventure ..
+					self.look()
+				elif act == 77:
+					if self.current_counter >= 0:
+						self.current_counter -= 1
+				elif act == 78:
+					self.output(self.current_counter)
+				elif act == 79:
+					self.current_counter = params[param_id]
+					param_id += 1
+				elif act == 80:
+					(self.player_room, self.saved_room) \
+							= (self.saved_room, self.player_room)
 					self.redraw = True
-				self.items[params[param_id]].location = 0
-				param_id += 1
-			elif act == 56:
-				self.bit_flags |= FLAG_DARK
-			elif act == 57:
-				self.bit_flags &= ~FLAG_DARK
-			elif act == 58:
-				self.bit_flags |= (1 << params[param_id])
-				param_id += 1
-			elif act == 60:
-				self.bit_flags &= ~(1 << params[param_id])
-				param_id += 1
-			elif act == 61:
-				self.output(self.string('dead', FLAG_YOUARE))
-				self.bit_flags &= ~FLAG_DARK
-				self.player_room = len(self.rooms) -1	# It seems to be what the code says!
-				self.look()
-			elif act == 62:
-				# Bug fix for some systems - before it could get parameters wrong
-				self.items[params[param_id]].location = params[param_id + 1]
-				param_id += 2
-				self.redraw = True
-			elif act == 63:
-				self.done_game()
-			elif act == 64:
-				self.look()
-			elif act == 65:
-				treasures = reduce(lambda count, item:
-							count + (item.location == self.treasure_room
-									and item.text.startswith('*') and 1 or 0),
-						self.items, 0)
-				self.output(self.string('treasures').format(
-						self.string('have', FLAG_YOUARE),
-						treasures,
-						treasures * 100 / self.treasures
-					))
+				elif act == 81:
+					# This is somewhat guessed. Claymorgue always
+					# seems to do select counter n, thing, select counter n,
+					# but uses one value that always seems to exist. Trying
+					# a few options I found this gave sane results on aging
+					(self.current_counter, self.counters[params[param_id]]) \
+							= (self.counters[params[param_id]], self.current_counter)
+					param_id += 1
+				elif act == 82:
+					self.current_counter += params[param_id]
+					param_id += 1
+				elif act == 83:
+					self.current_counter -= params[param_id]
+					# Note: This seems to be needed. I don't yet
+					# know if there is a maximum value to limit too
+					if self.current_counter < -1:
+						self.current_counter = -1
+					param_id += 1
+				elif act == 84:
+					self.output(self.noun_text)
+				elif act == 85:
+					self.output(self.noun_text)
+					self.output('\n')
+				elif act == 86:
+					self.output('\n')
+				elif act == 87:
+					# Changed this to swap location<->roomflag[x]
+					# not roomflag 0 and x
+					(self.player_room, self.room_saved[params[param_id]]) \
+							= (self.room_saved[params[param_id]], self.player_room)
+					param_id += 1
+					self.redraw = True
+				elif act == 88:
+					if self.options & FLAG_USE_CURSES:
+						for win in self.win:
+							win.refresh()
 
-				if treasures == self.treasures:
-					self.output(self.string('well done'))
-					self.done_game()
-			elif act == 66:
-				carry = map(lambda item: item.text, filter(lambda item: item.location == LOC_CARRIED, self.items))
-				if len(carry):
-					carry = self.string('list separator', FLAG_TRS80_STYLE).join(carry)
+					time.sleep(2)	# DOC's say 2 seconds. Spectrum times at 1.5
+				elif act == 89:
+					param_id += 1
+					# SAGA draw picture n
+					# Spectrum Seas of Blood - start combat ?
+					# Poking this into older spectrum games causes a crash
 				else:
-					carry = self.string('nothing')
-
-				self.output(self.string('carry', FLAG_YOUARE).format(carry))
-			elif act == 67:
-				self.bit_flags |= 1
-			elif act == 68:
-				self.bit_flags &= ~1
-			elif act == 69:
-				self.light_time = self.light_refill
-				if self.items[ITEM_LIGHT].location == self.player_room:
-					self.redraw = True
-
-				self.items[ITEM_LIGHT].location = LOC_CARRIED
-				self.bit_flags &= ~FLAG_DARK
-			elif act == 70:
-				self.clear_screen()	# pdd.
-				self.output_reset()
-			elif act == 71:
-				self.save_game()
-			elif act == 72:
-				i = params[param_id:param_id +2]
-				param_id += 2
-				if self.items[i[0]].location == self.player_room \
-						or self.items[i[1]].location == self.player_room:
-					self.redraw = True
-
-				(self.items[i[0]].location, self.items[i[1]].location) \
-						= (self.items[i[1]].location, self.items[i[0]].location)
-			elif act == 73:
-				continuation = 1
-			elif act == 74:
-				if self.items[params[param_id]].location == self.player_room:
-					self.redraw = True
-				self.items[params[param_id]].location = LOC_CARRIED
-				param_id += 1
-			elif act == 75:
-				i = params[param_id:param_id +2]
-				param_id += 2
-				if self.items[i[0]].location == self.player_room \
-						or self.items[i[1]].location == self.player_room:
-					self.redraw = True
-				self.items[i[0]].location = self.items[i[1]].location
-			elif act == 76:		# Looking at adventure ..
-				self.look()
-			elif act == 77:
-				if self.current_counter >= 0:
-					self.current_counter -= 1
-			elif act == 78:
-				self.output(self.current_counter)
-			elif act == 79:
-				self.current_counter = params[param_id]
-				param_id += 1
-			elif act == 80:
-				(self.player_room, self.saved_room) \
-						= (self.saved_room, self.player_room)
-				self.redraw = True
-			elif act == 81:
-				# This is somewhat guessed. Claymorgue always
-				# seems to do select counter n, thing, select counter n,
-				# but uses one value that always seems to exist. Trying
-				# a few options I found this gave sane results on aging
-				(self.current_counter, self.counters[params[param_id]]) \
-						= (self.counters[params[param_id]], self.current_counter)
-				param_id += 1
-			elif act == 82:
-				self.current_counter += params[param_id]
-				param_id += 1
-			elif act == 83:
-				self.current_counter -= params[param_id]
-				# Note: This seems to be needed. I don't yet
-				# know if there is a maximum value to limit too
-				if self.current_counter < -1:
-					self.current_counter = -1
-				param_id += 1
-			elif act == 84:
-				self.output(self.noun_text)
-			elif act == 85:
-				self.output(self.noun_text)
-				self.output('\n')
-			elif act == 86:
-				self.output('\n')
-			elif act == 87:
-				# Changed this to swap location<->roomflag[x]
-				# not roomflag 0 and x
-				(self.player_room, self.room_saved[params[param_id]]) \
-						= (self.room_saved[params[param_id]], self.player_room)
-				param_id += 1
-				self.redraw = True
-			elif act == 88:
-				if self.options & FLAG_USE_CURSES:
-					for win in self.win:
-						win.refresh()
-
-				time.sleep(2)	# DOC's say 2 seconds. Spectrum times at 1.5
-			elif act == 89:
-				param_id += 1
-				# SAGA draw picture n
-				# Spectrum Seas of Blood - start combat ?
-				# Poking this into older spectrum games causes a crash
-			else:
-				sys.stderr.write('Unknown action {0:d} [Param begins {1:d} {2:d}]\n' \
-						.format(act, params[param_id], params[param_id + 1]))
+					sys.stderr.write('Unknown action {0:d} [Param begins {1:d} {2:d}]\n' \
+							.format(act, params[param_id], params[param_id + 1]))
 
 		return 1 + continuation
 
@@ -1006,8 +1010,7 @@ Adventure: {0.adventure}
 			return 0
 
 		if verb_id == 1 and noun_id in range(1, 7):
-			if self.items[ITEM_LIGHT].location == self.player_room \
-					or self.items[ITEM_LIGHT].location == LOC_CARRIED:
+			if self.test_light(self.player_room, LOC_CARRIED):
 				dark = False
 
 			if dark:
@@ -1068,8 +1071,7 @@ Adventure: {0.adventure}
 							return 0
 
 		if fl != 0 and enable_sysfunc:
-			if self.items[ITEM_LIGHT].location == self.player_room \
-					or self.items[ITEM_LIGHT].location == LOC_CARRIED:
+			if self.test_light(self.player_room, LOC_CARRIED):
 			   	dark = 0
 
 			if verb_id == 10 or verb_id == 18:
@@ -1173,20 +1175,18 @@ Adventure: {0.adventure}
 				self.output(self.string('perform_actions')[abs(ret) -1])
 
 			# Brian Howarth games seem to use -1 for forever
-			if self.items[ITEM_LIGHT].location != LOC_DESTROYED and self.light_time != -1:
+			if not self.test_light(LOC_DESTROYED) and self.light_time != -1:
 				self.light_time -= 1
 				if self.light_time < 1:
 					self.bit_flags |= FLAG_LIGHT_OUT
-					if self.items[ITEM_LIGHT].location == LOC_CARRIED \
-							or self.items[ITEM_LIGHT].location == self.player_room:
+					if self.test_light(LOC_CARRIED, self.player_room):
 						output(self.string('light out', FLAG_SCOTTLIGHT))
 
 					if self.options & FLAG_PREHISTORIC_LAMP:
 						self.items[ITEM_LIGHT].location = LOC_DESTROYED
 
 				elif self.light_time < 25:
-					if self.items[ITEM_LIGHT].location == LOC_CARRIED \
-							or self.items[ITEM_LIGHT].location == self.player_room:
+					if self.test_light(LOC_CARRIED, self.player_room):
 						if(self.options & FLAG_SCOTTLIGHT):
 							self.output(self.string('light out in').format(self.light_time))
 						elif(self.light_time % 5 == 0):
