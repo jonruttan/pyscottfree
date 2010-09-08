@@ -20,122 +20,23 @@
 #	2 of the License, or (at your option) any later version.
 #
 
-# Todo:
-#	More debugging, improve debugging formatting
-#	Test availability of imported modules
-#	Licensing
-#	Remove vestigal code
-#	Comment cleanup
-#	Release
-
 __author__ = 'Jon Ruttan'
 __copyright__ = 'Copyright (C) 2010 Jon Ruttan'
 __license__ = 'Distributed under the GNU software license'
-__version__ = '0.7.0'
+__version__ = '0.8.0'
 
 import sys
 import os
-import signal
 import time
 import random
-import getopt
-import curses
-
-LOC_DESTROYED = 0				# Destroyed
-LOC_CARRIED = 255				# Carried
-
-ITEM_LIGHT = 9					# Always 9 how odd
-
-FLAG_YOUARE = 0x1				# You are not I am
-FLAG_SCOTTLIGHT = 0x2			# Authentic Scott Adams light messages
-FLAG_TRS80_STYLE = 0x4			# Display in style used on TRS-80
-FLAG_PREHISTORIC_LAMP = 0x8		# Destroy the lamp (very old databases)
-FLAG_USE_CURSES = 0x10			# Uses curses terminal output
-FLAG_WAIT_ON_EXIT = 0x20		# Wait before exiting
-FLAG_VERBOSE = 0x40				# Info from load/save
-FLAG_DEBUGGING = 0x80			# Debugging info
-
-FLAG_DARK = 0x8000
-FLAG_LIGHT_OUT = 0x10000		# Light gone out
 
 ENV_FILE = 'SCOTTFREE_PATH'
 ENV_SAVE = 'SCOTTFREE_SAVE'
 DIR_SAVE = '~/.scottfree'
-
-curses_up = False			# Curses up
-
-def end_curses():
-	if curses_up:
-		curses.nocbreak()
-		curses.echo()
-		curses.endwin()
-
-def exit(errno = 0, errstr = None):
-	end_curses()
-
-	if errstr != None:
-		sys.stderr.write(errstr)
-
-	sys.exit(errno)
-
-def fatal(str):
-	exit(1, '\n{0}.\n'.format(str))
-
-def aborted(signum, frame):
-	fatal('User exit')
-
-signal.signal(signal.SIGINT, aborted)	# For curses
-signal.signal(signal.SIGQUIT, signal.SIG_IGN)
-signal.signal(signal.SIGTSTP, signal.SIG_IGN)
+EXT_SAVE = '.sav'
 
 def random_percent(n):
 	return random.randint(0, 99) < n
-
-def read_next_item(file, quote = None, type = None, bytes = 1):
-	while not len(read_next_item.string):
-		# Read in the next line and strip the whitespace
-		read_next_item.string = file.readline().strip()
-
-	if quote != None:
-		# If the string doesn't start with a quote, complain and exit
-		if not read_next_item.string.startswith(quote):
-			fatal('Initial quote({0}) expected -- {1}'.format(quote, read_next_item.string))
-
-		while True:
-			end = read_next_item.string[1:].find(quote)
-			# If the string doesn't end with a quote, complain and exit
-			if end == -1:
-				read_next_item.string += '\n' + file.readline().strip()
-			else:
-				end += 2
-				break
-
-		string = read_next_item.string[:end].strip('"').replace('`', '"')
-
-	else:
-		end = read_next_item.string.find(' ')
-		if end == -1:
-			end = len(read_next_item.string)
-
-		string = read_next_item.string[:end]
-
-#		if string == '-1':
-#			string = (1 << (bytes << 3)) -1
-
-		if string == str((1 << (bytes << 3)) -1):
-			string = '-1'
-
-	read_next_item.string = read_next_item.string[end+1:]
-
-	return string
-
-read_next_item.string = ''
-
-def read_number(file, bytes = 1):
-	return int(read_next_item(file))
-
-def read_string(file):
-	return read_next_item(file, '"')
 
 # From http://code.activestate.com/recipes/148061/
 def wrap_str(text, width = 80):
@@ -149,16 +50,17 @@ def wrap_str(text, width = 80):
 					+ len(word.split('\n',1)[0]) >= width)], word),
 			str(text).split(' '))
 
+
 class Action:
 	def __init__(self):
 		self.vocab = None
 		self.condition = [None] * 5
 		self.action = [None] * 2
 
-	def read(self, file):
-		self.vocab = read_number(file)
-		self.condition = [read_number(file) for i in range(0, 5)]
-		self.action = [read_number(file) for i in range(0, 2)]
+	def read(self, saga):
+		self.vocab = saga.read_number()
+		self.condition = [saga.read_number() for i in range(0, 5)]
+		self.action = [saga.read_number() for i in range(0, 2)]
 
 	def to_string(self):
 		return 'Action(Vocab: {0:d}, Condition: {1}, Action: {2})'.format( \
@@ -172,9 +74,9 @@ class Room:
 		self.text = None
 		self.exits = [None] * 6
 
-	def read(self, file):
-		self.exits = [read_number(file) for i in range(0, 6)]
-		self.text = read_string(file)
+	def read(self, saga):
+		self.exits = [saga.read_number() for i in range(0, 6)]
+		self.text = saga.read_string()
 
 	def to_string(self):
 		return 'Room(Text: {0}, Exits: {1})'.format( \
@@ -189,8 +91,8 @@ class Item:
 		self.initial_loc = None
 		self.auto_get = None
 
-	def read(self, file):
-		words = read_string(file).split('/')
+	def read(self, saga):
+		words = saga.read_string().split('/')
 		self.text = words[0]
 
 		# Some games use // to mean no auto get/drop word!
@@ -199,7 +101,7 @@ class Item:
 		else:
 			self.auto_get = ''
 
-		self.initial_loc = self.location = read_number(file)
+		self.initial_loc = self.location = saga.read_number()
 
 	def to_string(self):
 		return 'Item(Text: "{0}", Location: {1}, Initial Location: {2}, Auto Get: {3})'.format( \
@@ -216,11 +118,28 @@ class Tail:
 		self.unknown = None
 
 class Saga:
-	def __init__(self, filename = None, options = None, seed = None):
-		self.filepath = None
+	LOC_DESTROYED = 0				# Destroyed
+	LOC_CARRIED = 255				# Carried
+
+	ITEM_LIGHT = 9					# Always 9 how odd
+
+	FLAG_YOUARE = 0x1				# You are not I am
+	FLAG_SCOTTLIGHT = 0x2			# Authentic Scott Adams light messages
+	FLAG_TRS80_STYLE = 0x4			# Display in style used on TRS-80
+	FLAG_PREHISTORIC_LAMP = 0x8		# Destroy the lamp (very old databases)
+	FLAG_WAIT_ON_EXIT = 0x20		# Wait before exiting
+	FLAG_VERBOSE = 0x40				# Info from load/save
+	FLAG_DEBUGGING = 0x80			# Debugging info
+
+	FLAG_DARK = 0x8000
+	FLAG_LIGHT_OUT = 0x10000		# Light gone out
+
+
+	def __init__(self, name, file, options=None, seed=None, filepath=None, greet=True):
+		self.name = name
+		self.file = file
+		self.filepath = filepath
 		self.filename = None
-		self.savepath = None
-		self.savename = None
 
 		# From Header
 		self.unknown1 = None
@@ -253,28 +172,11 @@ class Saga:
 		self.redraw = False			# Update item window
 		self.width = 80					# 80 column display
 
-		# For curses
-		self.win = [None, None]
-		self.win_height = (10, 14)		# Height of the curses windows
-
 		if options != None:
 			# Terminal width
-			if options & FLAG_TRS80_STYLE:
+			if options & Saga.FLAG_TRS80_STYLE:
 				self.width = 64
 				self.win_height = (11, 13)
-
-			if options & FLAG_USE_CURSES:
-				curses.initscr()
-				globals()['curses_up'] = True
-				self.win[0] = curses.newwin(self.win_height[0], self.width, 0, 0)
-				self.win[1] = curses.newwin(self.win_height[1], self.width, self.win_height[0], 0)
-				self.win[0].leaveok(True)
-				self.win[1].scrollok(True)
-				self.win[1].leaveok(False)
-				self.win[1].idlok(True)
-				curses.noecho()
-				curses.cbreak()
-				self.win[1].move(self.win_height[1] -1, 0)
 
 		self.last_synonym = None
 
@@ -339,26 +241,15 @@ class Saga:
 			'light dim': "Your light is growing dim. "
 		}
 
-		if os.environ.has_key(ENV_FILE):
-			self.filepath = os.environ.get(ENV_FILE)
-		else:
-			self.filepath = ''
-
-		if os.environ.has_key(ENV_SAVE):
-			self.savepath = os.environ.get(ENV_SAVE)
-		elif os.environ.has_key('HOME'):
-			self.savepath = os.path.join(os.path.expanduser(DIR_SAVE))
-			if not os.path.exists(self.savepath):
-				os.mkdir(self.savepath)
-		else:
-			self.savepath = ''
-
-		if filename != None:
-			self.load_database(filename)
+		self.load_database(file)
 
 		# Initialize the random number generator, None will use the system time
 		random.seed(seed)
 
+		if greet:
+			self.greet()
+
+	def greet(self):
 		self.output('''PyScottFree, A Scott Adams game driver in Python.
 Release {0}, {1}.
 Based on Scott Free A Scott Adams game driver in C.
@@ -366,6 +257,7 @@ Release 1.14, (c) 1993,1994,1995 Swansea University Computer Society.
 {2}
 
 '''.format(__version__, __copyright__, __license__))
+
 
 
 	def dump(self):
@@ -393,16 +285,66 @@ Adventure: {0.adventure}
 				', \n'.join(map(lambda obj: obj.to_string(), self.rooms))
 		)
 
-	def exit(self, errno = 0, str = None):
-		if self.options & FLAG_WAIT_ON_EXIT:
-			time.sleep(5)
-		elif self.options & FLAG_USE_CURSES:
-			self.input('\nPress Enter to continue...')
+	def readline(self):
+		return self.file.readline().strip()
 
-		exit(errno, str)
+	next_item_string = ''
+	def read_next_item(self, quote = None, type = None, bytes = 1):
+		while not len(self.next_item_string):
+			# Read in the next line and strip the whitespace
+			self.next_item_string = self.readline()
+
+		if quote != None:
+			# If the string doesn't start with a quote, complain and exit
+			if not self.next_item_string.startswith(quote):
+				fatal('Initial quote({0}) expected -- {1}'.format(quote, self.next_item_string))
+
+			while True:
+				end = self.next_item_string[1:].find(quote)
+				# If the string doesn't end with a quote, complain and exit
+				if end == -1:
+					self.next_item_string += '\n' + self.readline()
+				else:
+					end += 2
+					break
+
+			string = self.next_item_string[:end].strip('"').replace('`', '"')
+
+		else:
+			end = self.next_item_string.find(' ')
+			if end == -1:
+				end = len(self.next_item_string)
+
+			string = self.next_item_string[:end]
+
+			if string == str((1 << (bytes << 3)) -1):
+				string = '-1'
+
+		self.next_item_string = self.next_item_string[end+1:]
+
+		return string
+
+	def read_number(self, bytes = 1):
+		return int(self.read_next_item())
+
+	def read_string(self):
+		return self.read_next_item('"')
+
+	def exit(self, errno = 0, errstr = None):
+		if self.options & Saga.FLAG_WAIT_ON_EXIT:
+			time.sleep(5)
+
+		if errstr != None:
+			sys.stderr.write(errstr)
+
+		# TODO: Handle exit in a better manner
+		sys.exit(errno)
 
 	def fatal(self, str):
 		self.exit(1, '\n{0}.\n'.format(str))
+
+	def option(self, *options):
+		return reduce(lambda x,y: x|y, options) & self.options
 
 	def string(self, name, option_flag = None):
 		if option_flag == None:
@@ -410,59 +352,26 @@ Adventure: {0.adventure}
 		return self.strings[name][self.options & option_flag and 1 or 0]
 
 	def clear_screen(self):
-		if self.options & FLAG_USE_CURSES:
-			for win in self.win:
-				win.erase()
+		pass
 
-	def output_reset(self, win = 1, scroll = False):
-		if self.options & FLAG_USE_CURSES:
-			if scroll:
-				self.win[win].scroll
-			self.win[win].move(self.win_height[win] -1, 0)
-			self.win[win].clrtoeol()
+	def output_reset(self, win=1, scroll=False):
+		pass
 
-	def curses_addstr(self, str, win = 1):
-		try:
-			self.win[win].addstr(str)
-		except curses.error:
-			pass
+	def output(self, str, win=1, scroll=True, wrap=True):
+		sys.stdout.write(wrap_str(str, self.width))
 
-	def output(self, str, win = 1, scroll = True, wrap = True):
-		if self.options & FLAG_USE_CURSES:
-			if wrap is True:
-				wrap = self.width -2
-
-			if wrap:
-				lines = wrap_str(str, wrap).split('\n')
-
-				for line in lines[:-1]:
-					self.curses_addstr(line + '\n', win)
-					if scroll:
-						self.output_reset(win, True)
-
-				self.curses_addstr(lines[-1], win)
-			else:
-				self.curses_addstr(str, win)
-
-			self.win[win].refresh()
-		else:
-			sys.stdout.write(wrap_str(str, self.width))
-
-	def input(self, str = '', win = 1):
-		if self.options & FLAG_USE_CURSES:
-			self.output(str, win, False)
-			curses.doupdate()
-			curses.echo()
-			str = self.win[win].getstr()
-			curses.noecho()
-			self.output_reset()
-		else:
-			str = raw_input(str)
-
-		return str.strip()
+	def input(self, str='', win=1):
+		return raw_input(str).strip()
 
 	def count_carried(self):
-		return reduce(lambda count, item: count + item.location == LOC_CARRIED and 1 or 0, self.items, 0)
+		return reduce(lambda count, item: count + item.location == Saga.LOC_CARRIED and 1 or 0, self.items, 0)
+
+	def test_light(self, *locations):
+		if Saga.ITEM_LIGHT < len(self.items) \
+				and self.items[Saga.ITEM_LIGHT].location in locations:
+			return True
+
+		return False
 
 	def map_synonym(self, word):
 		for noun in self.nouns:
@@ -493,29 +402,14 @@ Adventure: {0.adventure}
 		return -1
 
 
-	def load_database(self, filename = None):
-		if filename == None:
-			filename = self.input('Filename: ').strip()
-
-		if not os.path.exists(filename):
-			filename = os.path.join(self.filepath, filename)
-
-		# Try to open the file
-		try:
-			file = open(filename, 'r')
-		except IOError:
-			self.fatal(self.string('file error').format(filename))
-
-		self.filename = filename
-
-		# Generate a savename from the filename by replacing the extension
-		self.savename = os.path.join(self.savepath,
-				 os.path.splitext(os.path.basename(filename))[0] + '.sav')
+	def load_database(self, file=None):
+		if file is None:
+			return False
 
 		keys = [0, 'ni', 'na', 'nw', 'nr', 'mc', 'pr', 'tr', 'wl', 'lt', 'mn', 'trm']
 		data = {}
 		for key in keys:
-			data[key] = read_number(file)
+			data[key] = self.read_number(file)
 
 		self.items = [Item() for i in range(0, data['ni'] + 1)]
 		self.actions = [Action() for i in range(0, data['na'] + 1)]
@@ -530,59 +424,58 @@ Adventure: {0.adventure}
 		self.messages = [None] * (data['mn'] + 1)
 		self.treasure_room = data['trm']
 
-		if self.options & FLAG_VERBOSE or self.options & FLAG_DEBUGGING:
+		if self.option(Saga.FLAG_VERBOSE, Saga.FLAG_DEBUGGING):
 			print 'Reading {0:d} actions.'.format(data['na'])
 		for action in self.actions:
-			action.read(file)
+			action.read(self)
 
-		if self.options & FLAG_VERBOSE or self.options & FLAG_DEBUGGING:
+		if self.option(Saga.FLAG_VERBOSE, Saga.FLAG_DEBUGGING):
 			print 'Reading {0:d} word pairs.'.format(data['nw'])
 		for i in range(0, data['nw'] + 1):
-			self.verbs[i] = read_string(file)
-			self.nouns[i] = read_string(file)
+			self.verbs[i] = self.read_string()
+			self.nouns[i] = self.read_string()
 
-		if self.options & FLAG_VERBOSE or self.options & FLAG_DEBUGGING:
+		if self.option(Saga.FLAG_VERBOSE, Saga.FLAG_DEBUGGING):
 			print 'Reading {0:d} rooms.'.format(data['nr'])
 		for room in self.rooms:
-			room.read(file)
+			room.read(self)
 
-		if self.options & FLAG_VERBOSE or self.options & FLAG_DEBUGGING:
+		if self.option(Saga.FLAG_VERBOSE, Saga.FLAG_DEBUGGING):
 			print 'Reading {0:d} messages.'.format(data['mn'])
 		for i in range(0, data['mn'] + 1):
-			self.messages[i] = read_string(file)
+			self.messages[i] = self.read_string()
 
-		if self.options & FLAG_VERBOSE or self.options & FLAG_DEBUGGING:
+		if self.option(Saga.FLAG_VERBOSE, Saga.FLAG_DEBUGGING):
 			print 'Reading {0:d} items. '.format(data['ni'])
 		for item in self.items:
-			item.read(file)
+			item.read(self)
 
 		# Discard Comment Strings
 		for i in range(0, data['na'] + 1):
-			read_string(file)
+			self.read_string()
 
-		self.version = read_number(file)
-		self.adventure = read_number(file)
+		self.version = self.read_number()
+		self.adventure = self.read_number()
 
-		if self.options & FLAG_VERBOSE or self.options & FLAG_DEBUGGING:
+		if self.option(Saga.FLAG_VERBOSE, Saga.FLAG_DEBUGGING):
 			print 'Version {0:d}.{1:02d} of Adventure {2:d}\nLoad Complete.\n' \
 					.format(self.version / 100, self.version % 100, self.adventure)
 
-		file.close
 
-		if self.options & FLAG_DEBUGGING:
+		if self.option(Saga.FLAG_DEBUGGING):
 			self.dump()
 
 		self.redraw = True
 
 
 	def look(self):
-		if self.options & FLAG_USE_CURSES:
-			self.win[0].erase()
-			self.win[0].move(0, 0)
+#		if self.options & FLAG_USE_CURSES:
+#			self.win[0].erase()
+#			self.win[0].move(0, 0)
 
-		if self.bit_flags & FLAG_DARK \
-				and self.items[ITEM_LIGHT].location != LOC_CARRIED \
-				and self.items[ITEM_LIGHT].location != self.player_room:
+		if self.bit_flags & Saga.FLAG_DARK \
+				and self.items[Saga.ITEM_LIGHT].location != Saga.LOC_CARRIED \
+				and self.items[Saga.ITEM_LIGHT].location != self.player_room:
 			self.output(self.string('too dark', FLAG_YOUARE), 0, False)
 
 			if self.options & FLAG_TRS80_STYLE:
@@ -594,7 +487,7 @@ Adventure: {0.adventure}
 		if r.text.startswith('*'):
 			self.output(r.text[1:] + '\n', 0, False)
 		else:
-			self.output(self.string('look', FLAG_YOUARE).format(r.text), 0, False)
+			self.output(self.string('look', Saga.FLAG_YOUARE).format(r.text), 0, False)
 
 		exits = []
 		for (i, exit) in enumerate(r.exits):
@@ -606,9 +499,9 @@ Adventure: {0.adventure}
 
 		items = map(lambda item: item.text, filter(lambda item: item.location == self.player_room, self.items))
 		if len(items):
-			separator = self.string('list separator', FLAG_TRS80_STYLE)
+			separator = self.string('list separator', Saga.FLAG_TRS80_STYLE)
 #			self.output(self.string('also see', FLAG_YOUARE).format(joiner.join(items)), 0, False, self.width -10)
-			lines = [self.string('also see', FLAG_YOUARE)]
+			lines = [self.string('also see', Saga.FLAG_YOUARE)]
 			for item in items:
 				if len(lines[-1]) + len(item) > self.width - 10:
 					lines.append('')
@@ -616,12 +509,12 @@ Adventure: {0.adventure}
 
 			lines = '\n'.join(lines)
 
-			if not self.options & FLAG_TRS80_STYLE:
+			if not self.options & Saga.FLAG_TRS80_STYLE:
 				lines = lines[:-len(separator)]
 
 			self.output(lines + '\n', 0, False)
 
-		if self.options & FLAG_TRS80_STYLE:
+		if self.options & Saga.FLAG_TRS80_STYLE:
 			self.output(self.string('trs80 line'), 0, False)
 
 
@@ -693,14 +586,13 @@ Adventure: {0.adventure}
 
 	def save_game(self, filename = None):
 		if filename == None:
-			filename = self.input(self.string('filename').format(self.savename)).strip()
+			default = self.name + EXT_SAVE
+			filename = self.input(self.string('filename').format(default)).strip()
 
-		if len(filename):
-			self.savename = filename
-		else:
-			filename = self.savename
+			if len(filename):
+				filename = default
 
-		if self.options & FLAG_VERBOSE:
+		if self.options & Saga.FLAG_VERBOSE:
 			print 'Saving to "{0}"'.format(filename),
 
 		try:
@@ -712,7 +604,7 @@ Adventure: {0.adventure}
 			file.write('{0:d} {1:d}\n'.format(self.counters[i], self.room_saved[i]))
 
 		file.write('{0:d} {1:d} {2:d} {3:d} {4:d} {5:d}\n'.format(self.bit_flags, \
-				self.bit_flags & FLAG_DARK and 1 or 0, \
+				self.bit_flags & Saga.FLAG_DARK and 1 or 0, \
 				self.player_room, \
 				self.current_counter, \
 				self.saved_room, \
@@ -727,12 +619,11 @@ Adventure: {0.adventure}
 
 	def load_game(self, filename = None):
 		if filename == None:
-			filename = self.input(self.string('filename').format(self.savename)).strip()
+			default = self.name + EXT_SAVE
+			filename = self.input(self.string('filename').format(default)).strip()
 
-		if len(filename):
-			self.savename = filename
-		else:
-			filename = self.savename
+			if len(filename):
+				filename = default
 
 		try:
 			file = open(filename,'r')
@@ -741,30 +632,30 @@ Adventure: {0.adventure}
 
 		self.savename = filename
 
-		if self.options & FLAG_VERBOSE:
+		if self.options & Saga.FLAG_VERBOSE:
 			print 'Loading from "{0}"'.format(filename)
 
 		for i in range(0, 16):
-			self.counters[i] = read_number(file)
-			self.room_saved[i] = read_number(file)
+			self.counters[i] = self.read_number(file)
+			self.room_saved[i] = self.read_number(file)
 
-		self.bit_flags = read_number(file)
-		dark_flag = read_number(file)
-		self.player_room = read_number(file)
-		self.current_counter = read_number(file)
-		self.saved_room = read_number(file)
-		self.light_time = read_number(file)
+		self.bit_flags = self.read_number(file)
+		dark_flag = self.read_number(file)
+		self.player_room = self.read_number(file)
+		self.current_counter = self.read_number(file)
+		self.saved_room = self.read_number(file)
+		self.light_time = self.read_number(file)
 
 		# Backward compatibility
 		if dark_flag:
-			self.bit_flags |= FLAG_DARK
+			self.bit_flags |= Saga.FLAG_DARK
 
 		for item in self.items:
-			item.location = read_number(file)
+			item.location = self.read_number(file)
 
 		file.close()
 
-		if self.options & FLAG_VERBOSE:
+		if self.options & Saga.FLAG_VERBOSE:
 			print 'Loaded.'
 
 
@@ -773,13 +664,6 @@ Adventure: {0.adventure}
 		self.exit(0)
 
 
-	def test_light(self, *locations):
-		if ITEM_LIGHT < len(self.items) \
-				and self.items[ITEM_LIGHT].location in locations:
-			return True
-
-		return False
-
 	def perform_line(self, action):
 		continuation = 0
 		params = [None] * 5
@@ -787,26 +671,26 @@ Adventure: {0.adventure}
 		for i in action.condition:
 			(dv, cv) = divmod(i, 20)
 
-			if self.options & FLAG_DEBUGGING:
+			if self.options & Saga.FLAG_DEBUGGING:
 				sys.stderr.write('Perform Line - cv: {0}, dv: {1}'.format(cv, dv))
 
 			if cv == 0:
 				params[param_id] = dv
 				param_id += 1
 			elif [
-				lambda: self.items[dv].location != LOC_CARRIED,
+				lambda: self.items[dv].location != Saga.LOC_CARRIED,
 				lambda: self.items[dv].location != self.player_room,
-				lambda: self.items[dv].location != LOC_CARRIED \
+				lambda: self.items[dv].location != Saga.LOC_CARRIED \
 						and self.items[dv].location != self.player_room,
 				lambda: self.player_room != dv,
 				lambda: self.items[dv].location == self.player_room,
-				lambda: self.items[dv].location == LOC_CARRIED,
+				lambda: self.items[dv].location == Saga.LOC_CARRIED,
 				lambda: self.player_room == dv,
 				lambda: self.bit_flags & (1 << dv) == 0,
 				lambda: self.bit_flags & (1 << dv),
 				lambda: self.count_carried() == 0,
 				lambda: self.count_carried(),
-				lambda: self.items[dv].location == LOC_CARRIED \
+				lambda: self.items[dv].location == Saga.LOC_CARRIED \
 						or self.items[dv].location == self.player_room,
 				lambda: self.items[dv].location == 0,
 				lambda: self.items[dv].location,
@@ -823,7 +707,7 @@ Adventure: {0.adventure}
 		param_id = 0
 		for action in action.action:
 			for act in divmod(action, 150):
-				if self.options & FLAG_DEBUGGING:
+				if self.options & Saga.FLAG_DEBUGGING:
 					sys.stderr.write('Action - {0}'.format(act))
 
 				if act >= 1 and act < 52:
@@ -834,11 +718,11 @@ Adventure: {0.adventure}
 					pass
 				elif act == 52:
 					if self.count_carried() == self.max_carry:
-						self.output(self.string('overloaded', FLAG_YOUARE))
+						self.output(self.string('overloaded', Saga.FLAG_YOUARE))
 					else:
 						if self.items[params[param_id]].location == self.player_room:
 							self.redraw = True
-						self.items[params[param_id]].location = LOC_CARRIED
+						self.items[params[param_id]].location = Saga.LOC_CARRIED
 						param_id += 1
 				elif act == 53:
 					self.redraw = True
@@ -854,9 +738,9 @@ Adventure: {0.adventure}
 					self.items[params[param_id]].location = 0
 					param_id += 1
 				elif act == 56:
-					self.bit_flags |= FLAG_DARK
+					self.bit_flags |= Saga.FLAG_DARK
 				elif act == 57:
-					self.bit_flags &= ~FLAG_DARK
+					self.bit_flags &= ~Saga.FLAG_DARK
 				elif act == 58:
 					self.bit_flags |= (1 << params[param_id])
 					param_id += 1
@@ -864,8 +748,8 @@ Adventure: {0.adventure}
 					self.bit_flags &= ~(1 << params[param_id])
 					param_id += 1
 				elif act == 61:
-					self.output(self.string('dead', FLAG_YOUARE))
-					self.bit_flags &= ~FLAG_DARK
+					self.output(self.string('dead', Saga.FLAG_YOUARE))
+					self.bit_flags &= ~Saga.FLAG_DARK
 					self.player_room = len(self.rooms) -1	# It seems to be what the code says!
 					self.look()
 				elif act == 62:
@@ -883,7 +767,7 @@ Adventure: {0.adventure}
 										and item.text.startswith('*') and 1 or 0),
 							self.items, 0)
 					self.output(self.string('treasures').format(
-							self.string('have', FLAG_YOUARE),
+							self.string('have', Saga.FLAG_YOUARE),
 							treasures,
 							treasures * 100 / self.treasures
 						))
@@ -892,13 +776,13 @@ Adventure: {0.adventure}
 						self.output(self.string('well done'))
 						self.done_game()
 				elif act == 66:
-					carry = map(lambda item: item.text, filter(lambda item: item.location == LOC_CARRIED, self.items))
+					carry = map(lambda item: item.text, filter(lambda item: item.location == Saga.LOC_CARRIED, self.items))
 					if len(carry):
-						carry = self.string('list separator', FLAG_TRS80_STYLE).join(carry)
+						carry = self.string('list separator', Saga.FLAG_TRS80_STYLE).join(carry)
 					else:
 						carry = self.string('nothing')
 
-					self.output(self.string('carry', FLAG_YOUARE).format(carry))
+					self.output(self.string('carry', Saga.FLAG_YOUARE).format(carry))
 				elif act == 67:
 					self.bit_flags |= 1
 				elif act == 68:
@@ -908,8 +792,8 @@ Adventure: {0.adventure}
 					if self.test_light(self.player_room):
 						self.redraw = True
 
-					self.items[ITEM_LIGHT].location = LOC_CARRIED
-					self.bit_flags &= ~FLAG_DARK
+					self.items[Saga.ITEM_LIGHT].location = Saga.LOC_CARRIED
+					self.bit_flags &= ~Saga.FLAG_DARK
 				elif act == 70:
 					self.clear_screen()	# pdd.
 					self.output_reset()
@@ -929,7 +813,7 @@ Adventure: {0.adventure}
 				elif act == 74:
 					if self.items[params[param_id]].location == self.player_room:
 						self.redraw = True
-					self.items[params[param_id]].location = LOC_CARRIED
+					self.items[params[param_id]].location = Saga.LOC_CARRIED
 					param_id += 1
 				elif act == 75:
 					i = params[param_id:param_id +2]
@@ -985,9 +869,10 @@ Adventure: {0.adventure}
 					param_id += 1
 					self.redraw = True
 				elif act == 88:
-					if self.options & FLAG_USE_CURSES:
-						for win in self.win:
-							win.refresh()
+					pass
+#					if self.options & FLAG_USE_CURSES:
+#						for win in self.win:
+#							win.refresh()
 
 					time.sleep(2)	# DOC's say 2 seconds. Spectrum times at 1.5
 				elif act == 89:
@@ -1003,14 +888,14 @@ Adventure: {0.adventure}
 
 
 	def perform_actions(self, verb_id, noun_id, enable_sysfunc = True):
-		dark = bool(self.bit_flags & FLAG_DARK)
+		dark = bool(self.bit_flags & Saga.FLAG_DARK)
 
 		if verb_id == 1 and noun_id == -1:
 			self.output(self.string('need dir'))
 			return 0
 
 		if verb_id == 1 and noun_id in range(1, 7):
-			if self.test_light(self.player_room, LOC_CARRIED):
+			if self.test_light(self.player_room, Saga.LOC_CARRIED):
 				dark = False
 
 			if dark:
@@ -1023,16 +908,16 @@ Adventure: {0.adventure}
 				return 0
 
 			if dark:
-				self.output(self.string('broke neck', FLAG_YOUARE))
+				self.output(self.string('broke neck', Saga.FLAG_YOUARE))
 				self.exit(0)
 
-			self.output(self.string('blocked', FLAG_YOUARE))
+			self.output(self.string('blocked', Saga.FLAG_YOUARE))
 			return 0
 
 		fl = -1
 		do_again = False
 		for action in self.actions:
-			if self.options & FLAG_DEBUGGING:
+			if self.options & Saga.FLAG_DEBUGGING:
 				sys.stderr.write(action.to_string())
 
 			vv = nv = action.vocab
@@ -1051,7 +936,7 @@ Adventure: {0.adventure}
 			nv %= 150
 			vv /= 150
 
-			if self.options & FLAG_DEBUGGING:
+			if self.options & Saga.FLAG_DEBUGGING:
 				sys.stderr.write('Verb: {0}, Noun: {1}, Action(Verb: {2}, Noun: {3})'.format(verb_id, noun_id, vv, nv))
 
 			if vv == verb_id or (do_again and action.vocab == 0):
@@ -1071,7 +956,7 @@ Adventure: {0.adventure}
 							return 0
 
 		if fl != 0 and enable_sysfunc:
-			if self.test_light(self.player_room, LOC_CARRIED):
+			if self.test_light(self.player_room, Saga.LOC_CARRIED):
 			   	dark = 0
 
 			if verb_id == 10 or verb_id == 18:
@@ -1091,10 +976,10 @@ Adventure: {0.adventure}
 								# Recursively check each items table code
 								self.perform_actions(verb_id, noun_id, False)
 								if self.count_carried() == self.max_carry:
-									self.output(self.string('overloaded', FLAG_YOUARE))
+									self.output(self.string('overloaded', Saga.FLAG_YOUARE))
 									return 0
 
-							 	item.location = LOC_CARRIED
+							 	item.location = Saga.LOC_CARRIED
 							 	self.redraw = True
 							 	self.output(self.string('take').format(item.text))
 							 	f = 1
@@ -1108,15 +993,15 @@ Adventure: {0.adventure}
 						return 0
 
 					if self.count_carried() == self.max_carry:
-						self.output(self.string('overloaded', FLAG_YOUARE))
+						self.output(self.string('overloaded', Saga.FLAG_YOUARE))
 						return 0
 
 					i = self.match_up_item(self.noun_text, self.player_room)
 					if i == -1:
-						self.output(self.string('unable', FLAG_YOUARE))
+						self.output(self.string('unable', Saga.FLAG_YOUARE))
 						return 0
 
-					self.items[i].location = LOC_CARRIED
+					self.items[i].location = Saga.LOC_CARRIED
 					self.output('O.K. ')
 					self.redraw = True
 					return 0
@@ -1125,7 +1010,7 @@ Adventure: {0.adventure}
 					if self.noun_text != None and self.noun_text.lower() == 'all':
 						f = 0
 						for item in self.items:
-							if item.location == LOC_CARRIED \
+							if item.location == Saga.LOC_CARRIED \
 									and len(item.auto_get) \
 									and not item.auto_get.startswith('*'):
 								noun_id = self.which_word(item.auto_get, self.nouns)
@@ -1143,9 +1028,9 @@ Adventure: {0.adventure}
 						self.output(self.string('what'))
 						return 0
 
-					i = self.match_up_item(self.noun_text, LOC_CARRIED)
+					i = self.match_up_item(self.noun_text, Saga.LOC_CARRIED)
 					if i == -1:
-						self.output(self.string('unable', FLAG_YOUARE))
+						self.output(self.string('unable', Saga.FLAG_YOUARE))
 						return 0
 
 					self.items[i].location = self.player_room
@@ -1175,25 +1060,24 @@ Adventure: {0.adventure}
 				self.output(self.string('perform_actions')[abs(ret) -1])
 
 			# Brian Howarth games seem to use -1 for forever
-			if not self.test_light(LOC_DESTROYED) and self.light_time != -1:
+			if not self.test_light(Saga.LOC_DESTROYED) and self.light_time != -1:
 				self.light_time -= 1
 				if self.light_time < 1:
-					self.bit_flags |= FLAG_LIGHT_OUT
-					if self.test_light(LOC_CARRIED, self.player_room):
-						output(self.string('light out', FLAG_SCOTTLIGHT))
+					self.bit_flags |= Saga.FLAG_LIGHT_OUT
+					if self.test_light(Saga.LOC_CARRIED, self.player_room):
+						output(self.string('light out', Saga.FLAG_SCOTTLIGHT))
 
-					if self.options & FLAG_PREHISTORIC_LAMP:
-						self.items[ITEM_LIGHT].location = LOC_DESTROYED
+					if self.options & Saga.FLAG_PREHISTORIC_LAMP:
+						self.items[Saga.ITEM_LIGHT].location = Saga.LOC_DESTROYED
 
 				elif self.light_time < 25:
-					if self.test_light(LOC_CARRIED, self.player_room):
-						if(self.options & FLAG_SCOTTLIGHT):
+					if self.test_light(Saga.LOC_CARRIED, self.player_room):
+						if(self.options & Saga.FLAG_SCOTTLIGHT):
 							self.output(self.string('light out in').format(self.light_time))
 						elif(self.light_time % 5 == 0):
 							self.output(self.string('light dim'))
 
-if __name__ == '__main__':
-	def usage(argv):
+def usage(argv):
 		sys.stderr.write('''Usage: {0} [options] <gamename> [savedgame]
 Options:
   -h  Print this message and exit
@@ -1209,67 +1093,82 @@ Options:
 	  line <-----------------> is displayed after the top stuff; objects
 	  have periods after them instead of hyphens
   -w  Wait five seconds before exiting
-  -c  Use curses for terminal output
   -r  Randomizer seed
 '''.format(argv[0]))
 
+def main(argv, obj_type=Saga):
+	import getopt
 
-	def main(argv):
-		options = 0
-		seed = None
+	options = 0
+	seed = None
 
-		try:
-			opts, args = getopt.getopt(argv[1:], 'hyivdstpwcr:', ['help'])
-		except getopt.GetoptError, err:
-			# print help information and exit:
-			sys.stderr.write(str(err)) # will print something like "option -a not recognized"
-			usage()
+	try:
+		opts, args = getopt.getopt(argv[1:], 'hyivdstpwcr:', ['help'])
+	except getopt.GetoptError, err:
+		# print help information and exit:
+		sys.stderr.write(str(err)) # will print something like "option -a not recognized"
+		usage()
+		sys.exit(2)
+
+	for opt, arg in opts:
+		if opt in ('-h', '--help'):
+			usage(argv)
+			sys.exit(0)
+		elif opt == '-y':
+			options |= Saga.FLAG_YOUARE
+		elif opt == '-i':
+			options &= ~Saga.FLAG_YOUARE
+		elif opt == '-v':
+			options |= Saga.FLAG_VERBOSE
+		elif opt == '-d':
+			options |= Saga.FLAG_DEBUGGING
+		elif opt == '-s':
+			options |= Saga.FLAG_SCOTTLIGHT
+		elif opt == '-t':
+			options |= Saga.FLAG_TRS80_STYLE
+		elif opt == '-p':
+			options |= Saga.FLAG_PREHISTORIC_LAMP
+		elif opt == '-w':
+			options |= Saga.FLAG_WAIT_ON_EXIT
+		elif opt == '-r':
+			seed = arg
+		else:
+			usage(argv[0])
 			sys.exit(2)
 
-		for opt, arg in opts:
-			if opt in ('-h', '--help'):
-				usage(argv)
-				sys.exit(0)
-			elif opt == '-y':
-				options |= FLAG_YOUARE
-			elif opt == '-i':
-				options &= ~FLAG_YOUARE
-			elif opt == '-v':
-				options |= FLAG_VERBOSE
-			elif opt == '-d':
-				options |= FLAG_DEBUGGING
-			elif opt == '-s':
-				options |= FLAG_SCOTTLIGHT
-			elif opt == '-t':
-				options |= FLAG_TRS80_STYLE
-			elif opt == '-p':
-				options |= FLAG_PREHISTORIC_LAMP
-			elif opt == '-w':
-				options |= FLAG_WAIT_ON_EXIT
-			elif opt == '-c':
-				options |= FLAG_USE_CURSES
-			elif opt == '-c':
-				seed = arg
-			else:
-				usage(argv[0])
-				sys.exit(2)
+	try:
+		filename = args[0]
+	except:
+		filename = raw_input('Filename: ').strip()
 
-		if not len(args):
-			#usage(argv[0])
-			#sys.exit(1)
-			filename = raw_input('Filename: ').strip()
+	filepath = os.environ.get(ENV_FILE)
+	if filepath is None:
+		filepath = ''
 
-		else:
-			filename = args[0]
+	savepath = os.environ.get(ENV_SAVE)
+	if savepath is None:
+		savepath = os.path.join(os.path.expanduser(DIR_SAVE))
+		if not os.path.exists(savepath):
+			os.mkdir(savepath)
 
-		saga = Saga(filename, options, seed)
+	if not os.path.exists(filename):
+		filename = os.path.join(self.filepath, filename)
 
-		if len(args) > 1:
-			saga.load_game(args[1])
-		elif os.path.exists(saga.savename):
-			if saga.input('Found saved game "{0}" Restore [Y/n]? '.format(saga.savename)).lower() != 'n':
-				saga.load_game(saga.savename)
+	name = os.path.splitext(os.path.basename(filename))[0]
 
-		saga.game_loop()
+	# Try to open the file and initialize the interpreter
+	with open(filename, 'r') as file:
+		saga = obj_type(name, file, options, seed, filepath)
 
+	# Generate a savename from the filename by replacing the extension
+	savename = os.path.join(savepath,
+			 os.path.splitext(os.path.basename(filename))[0] + '.sav')
+
+	if os.path.exists(savename):
+		if saga.input('Found saved game "{0}" Restore [Y/n]? '.format(savename)).lower() != 'n':
+			saga.load_game(savename)
+
+	saga.game_loop()
+
+if __name__ == '__main__':
 	main(sys.argv)
