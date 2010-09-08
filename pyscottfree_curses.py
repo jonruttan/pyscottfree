@@ -25,24 +25,9 @@ __copyright__ = 'Copyright (C) 2010 Jon Ruttan'
 __license__ = 'Distributed under the GNU software license'
 __version__ = '0.1.0'
 
-import sys
-import os
-import signal
-import getopt
-
 from pyscottfree import Saga, wrap_str, main
 
 import curses
-
-from pprint import pprint
-
-
-FLAG_USE_CURSES = 0x10			# Uses curses terminal output
-
-ENV_FILE = 'SCOTTFREE_PATH'
-ENV_SAVE = 'SCOTTFREE_SAVE'
-DIR_SAVE = '~/.scottfree'
-
 
 class CursesSaga(Saga):
 	def __init__(self, name, file, options = None, seed = None, filepath=None, greet=True):

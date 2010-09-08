@@ -23,16 +23,18 @@
 __author__ = 'Jon Ruttan'
 __copyright__ = 'Copyright (C) 2010 Jon Ruttan'
 __license__ = 'Distributed under the GNU software license'
-__version__ = '0.8.0'
+__version__ = '0.8.1'
 
 import sys
 import os
 import time
 import random
 
+from pprint import pprint
+
 ENV_FILE = 'SCOTTFREE_PATH'
 ENV_SAVE = 'SCOTTFREE_SAVE'
-DIR_SAVE = '~/.scottfree'
+DIR_SAVE = '%s/.scottfree/' % os.environ.get('HOME')
 EXT_SAVE = '.sav'
 
 def random_percent(n):
@@ -51,16 +53,61 @@ def wrap_str(text, width = 80):
 			str(text).split(' '))
 
 
+def read_next(file, quote=None, type=None, bytes=1):
+	while not len(read_next.string):
+		# Read in the next line and strip the whitespace
+		read_next.string = file.readline().strip()
+
+	if quote != None:
+		# If the string doesn't start with a quote, complain and exit
+		if not read_next.string.startswith(quote):
+			fatal('Initial quote({0}) expected -- {1}'.format(quote, read_next.string))
+
+		while True:
+			end = read_next.string[1:].find(quote)
+			# If the string doesn't end with a quote, complain and exit
+			if end == -1:
+				read_next.string += '\n' + file.readline().strip()
+			else:
+				end += 2
+				break
+
+		string = read_next.string[:end].strip('"').replace('`', '"')
+
+	else:
+		end = read_next.string.find(' ')
+		if end == -1:
+			end = len(read_next.string)
+
+		string = read_next.string[:end]
+
+		if string == str((1 << (bytes << 3)) -1):
+			string = '-1'
+
+	read_next.string = read_next.string[end+1:]
+
+	return string
+
+read_next.string = ''
+
+def read_number(file, bytes = 1):
+	return int(read_next(file))
+
+def read_string(file):
+	return read_next(file, '"')
+
+
+
 class Action:
 	def __init__(self):
 		self.vocab = None
 		self.condition = [None] * 5
 		self.action = [None] * 2
 
-	def read(self, saga):
-		self.vocab = saga.read_number()
-		self.condition = [saga.read_number() for i in range(0, 5)]
-		self.action = [saga.read_number() for i in range(0, 2)]
+	def read(self, file):
+		self.vocab = read_number(file)
+		self.condition = [read_number(file) for i in range(0, 5)]
+		self.action = [read_number(file) for i in range(0, 2)]
 
 	def to_string(self):
 		return 'Action(Vocab: {0:d}, Condition: {1}, Action: {2})'.format( \
@@ -74,9 +121,9 @@ class Room:
 		self.text = None
 		self.exits = [None] * 6
 
-	def read(self, saga):
-		self.exits = [saga.read_number() for i in range(0, 6)]
-		self.text = saga.read_string()
+	def read(self, file):
+		self.exits = [read_number(file) for i in range(0, 6)]
+		self.text = read_string(file)
 
 	def to_string(self):
 		return 'Room(Text: {0}, Exits: {1})'.format( \
@@ -91,8 +138,8 @@ class Item:
 		self.initial_loc = None
 		self.auto_get = None
 
-	def read(self, saga):
-		words = saga.read_string().split('/')
+	def read(self, file):
+		words = read_string(file).split('/')
 		self.text = words[0]
 
 		# Some games use // to mean no auto get/drop word!
@@ -101,7 +148,7 @@ class Item:
 		else:
 			self.auto_get = ''
 
-		self.initial_loc = self.location = saga.read_number()
+		self.initial_loc = self.location = read_number(file)
 
 	def to_string(self):
 		return 'Item(Text: "{0}", Location: {1}, Initial Location: {2}, Auto Get: {3})'.format( \
@@ -137,7 +184,6 @@ class Saga:
 
 	def __init__(self, name, file, options=None, seed=None, filepath=None, greet=True):
 		self.name = name
-		self.file = file
 		self.filepath = filepath
 		self.filename = None
 
@@ -247,16 +293,16 @@ class Saga:
 		random.seed(seed)
 
 		if greet:
-			self.greet()
+			self.output(self.greeting())
 
-	def greet(self):
-		self.output('''PyScottFree, A Scott Adams game driver in Python.
+	def greeting(self):
+		return '''PyScottFree, A Scott Adams game driver in Python.
 Release {0}, {1}.
 Based on Scott Free A Scott Adams game driver in C.
 Release 1.14, (c) 1993,1994,1995 Swansea University Computer Society.
 {2}
 
-'''.format(__version__, __copyright__, __license__))
+'''.format(__version__, __copyright__, __license__)
 
 
 
@@ -284,51 +330,6 @@ Adventure: {0.adventure}
 				', \n'.join(map(lambda obj: obj.to_string(), self.actions)),
 				', \n'.join(map(lambda obj: obj.to_string(), self.rooms))
 		)
-
-	def readline(self):
-		return self.file.readline().strip()
-
-	next_item_string = ''
-	def read_next_item(self, quote = None, type = None, bytes = 1):
-		while not len(self.next_item_string):
-			# Read in the next line and strip the whitespace
-			self.next_item_string = self.readline()
-
-		if quote != None:
-			# If the string doesn't start with a quote, complain and exit
-			if not self.next_item_string.startswith(quote):
-				fatal('Initial quote({0}) expected -- {1}'.format(quote, self.next_item_string))
-
-			while True:
-				end = self.next_item_string[1:].find(quote)
-				# If the string doesn't end with a quote, complain and exit
-				if end == -1:
-					self.next_item_string += '\n' + self.readline()
-				else:
-					end += 2
-					break
-
-			string = self.next_item_string[:end].strip('"').replace('`', '"')
-
-		else:
-			end = self.next_item_string.find(' ')
-			if end == -1:
-				end = len(self.next_item_string)
-
-			string = self.next_item_string[:end]
-
-			if string == str((1 << (bytes << 3)) -1):
-				string = '-1'
-
-		self.next_item_string = self.next_item_string[end+1:]
-
-		return string
-
-	def read_number(self, bytes = 1):
-		return int(self.read_next_item())
-
-	def read_string(self):
-		return self.read_next_item('"')
 
 	def exit(self, errno = 0, errstr = None):
 		if self.options & Saga.FLAG_WAIT_ON_EXIT:
@@ -409,7 +410,7 @@ Adventure: {0.adventure}
 		keys = [0, 'ni', 'na', 'nw', 'nr', 'mc', 'pr', 'tr', 'wl', 'lt', 'mn', 'trm']
 		data = {}
 		for key in keys:
-			data[key] = self.read_number(file)
+			data[key] = read_number(file)
 
 		self.items = [Item() for i in range(0, data['ni'] + 1)]
 		self.actions = [Action() for i in range(0, data['na'] + 1)]
@@ -427,35 +428,35 @@ Adventure: {0.adventure}
 		if self.option(Saga.FLAG_VERBOSE, Saga.FLAG_DEBUGGING):
 			print 'Reading {0:d} actions.'.format(data['na'])
 		for action in self.actions:
-			action.read(self)
+			action.read(file)
 
 		if self.option(Saga.FLAG_VERBOSE, Saga.FLAG_DEBUGGING):
 			print 'Reading {0:d} word pairs.'.format(data['nw'])
 		for i in range(0, data['nw'] + 1):
-			self.verbs[i] = self.read_string()
-			self.nouns[i] = self.read_string()
+			self.verbs[i] = read_string(file)
+			self.nouns[i] = read_string(file)
 
 		if self.option(Saga.FLAG_VERBOSE, Saga.FLAG_DEBUGGING):
 			print 'Reading {0:d} rooms.'.format(data['nr'])
 		for room in self.rooms:
-			room.read(self)
+			room.read(file)
 
 		if self.option(Saga.FLAG_VERBOSE, Saga.FLAG_DEBUGGING):
 			print 'Reading {0:d} messages.'.format(data['mn'])
 		for i in range(0, data['mn'] + 1):
-			self.messages[i] = self.read_string()
+			self.messages[i] = read_string(file)
 
 		if self.option(Saga.FLAG_VERBOSE, Saga.FLAG_DEBUGGING):
 			print 'Reading {0:d} items. '.format(data['ni'])
 		for item in self.items:
-			item.read(self)
+			item.read(file)
 
 		# Discard Comment Strings
 		for i in range(0, data['na'] + 1):
-			self.read_string()
+			read_string(file)
 
-		self.version = self.read_number()
-		self.adventure = self.read_number()
+		self.version = read_number(file)
+		self.adventure = read_number(file)
 
 		if self.option(Saga.FLAG_VERBOSE, Saga.FLAG_DEBUGGING):
 			print 'Version {0:d}.{1:02d} of Adventure {2:d}\nLoad Complete.\n' \
@@ -585,78 +586,78 @@ Adventure: {0.adventure}
 		return (verb_id, noun_id)
 
 	def save_game(self, filename = None):
+		default = DIR_SAVE + self.name + EXT_SAVE
+
 		if filename == None:
-			default = self.name + EXT_SAVE
 			filename = self.input(self.string('filename').format(default)).strip()
 
-			if len(filename):
-				filename = default
+		if not len(filename):
+			filename = default
 
 		if self.options & Saga.FLAG_VERBOSE:
-			print 'Saving to "{0}"'.format(filename),
+			print 'Saving to "{0}"'.format(filename)
 
 		try:
 			file = open(filename, 'w')
+
+			for i in range(0, 16):
+				file.write('{0:d} {1:d}\n'.format(self.counters[i], self.room_saved[i]))
+
+			file.write('{0:d} {1:d} {2:d} {3:d} {4:d} {5:d}\n'.format(self.bit_flags, \
+					self.bit_flags & Saga.FLAG_DARK and 1 or 0, \
+					self.player_room, \
+					self.current_counter, \
+					self.saved_room, \
+					self.light_time))
+
+			for item in self.items:
+				file.write('{0:d}\n'.format(item.location))
+
+			file.close()
+			self.output(self.string('save ok'))
 		except IOError:
 			self.output(self.string('save error'))
 
-		for i in range(0, 16):
-			file.write('{0:d} {1:d}\n'.format(self.counters[i], self.room_saved[i]))
-
-		file.write('{0:d} {1:d} {2:d} {3:d} {4:d} {5:d}\n'.format(self.bit_flags, \
-				self.bit_flags & Saga.FLAG_DARK and 1 or 0, \
-				self.player_room, \
-				self.current_counter, \
-				self.saved_room, \
-				self.light_time))
-
-		for item in self.items:
-			file.write('{0:d}\n'.format(item.location))
-
-		file.close()
-		self.output(self.string('save ok'))
-
 
 	def load_game(self, filename = None):
+		default = DIR_SAVE + self.name + EXT_SAVE
+
 		if filename == None:
-			default = self.name + EXT_SAVE
 			filename = self.input(self.string('filename').format(default)).strip()
 
-			if len(filename):
-				filename = default
+		if not len(filename):
+			filename = default
 
 		try:
 			file = open(filename,'r')
+
+			if self.options & Saga.FLAG_VERBOSE:
+				print 'Loading from "{0}"'.format(filename)
+
+			for i in range(0, 16):
+				self.counters[i] = read_number(file)
+				self.room_saved[i] = read_number(file)
+
+			self.bit_flags = read_number(file)
+			dark_flag = read_number(file)
+			self.player_room = read_number(file)
+			self.current_counter = read_number(file)
+			self.saved_room = read_number(file)
+			self.light_time = read_number(file)
+
+			# Backward compatibility
+			if dark_flag:
+				self.bit_flags |= Saga.FLAG_DARK
+
+			for item in self.items:
+				item.location = read_number(file)
+
+			file.close()
+
+			if self.options & Saga.FLAG_VERBOSE:
+				print 'Loaded.'
 		except IOError:
 			self.fatal(self.string('load error'))
-
-		self.savename = filename
-
-		if self.options & Saga.FLAG_VERBOSE:
-			print 'Loading from "{0}"'.format(filename)
-
-		for i in range(0, 16):
-			self.counters[i] = self.read_number(file)
-			self.room_saved[i] = self.read_number(file)
-
-		self.bit_flags = self.read_number(file)
-		dark_flag = self.read_number(file)
-		self.player_room = self.read_number(file)
-		self.current_counter = self.read_number(file)
-		self.saved_room = self.read_number(file)
-		self.light_time = self.read_number(file)
-
-		# Backward compatibility
-		if dark_flag:
-			self.bit_flags |= Saga.FLAG_DARK
-
-		for item in self.items:
-			item.location = self.read_number(file)
-
-		file.close()
-
-		if self.options & Saga.FLAG_VERBOSE:
-			print 'Loaded.'
 
 
 	def done_game(self):
