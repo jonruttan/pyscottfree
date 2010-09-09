@@ -23,10 +23,11 @@
 __author__ = 'Jon Ruttan'
 __copyright__ = 'Copyright (C) 2010 Jon Ruttan'
 __license__ = 'Distributed under the GNU software license'
-__version__ = '0.8.1'
+__version__ = '0.8.2'
 
 import sys
 import os
+import getopt
 import time
 import random
 
@@ -61,7 +62,7 @@ def read_next(file, quote=None, type=None, bytes=1):
 	if quote != None:
 		# If the string doesn't start with a quote, complain and exit
 		if not read_next.string.startswith(quote):
-			fatal('Initial quote({0}) expected -- {1}'.format(quote, read_next.string))
+			self.fatal('Initial quote({0}) expected -- {1}'.format(quote, read_next.string))
 
 		while True:
 			end = read_next.string[1:].find(quote)
@@ -182,10 +183,8 @@ class Saga:
 	FLAG_LIGHT_OUT = 0x10000		# Light gone out
 
 
-	def __init__(self, name, file, options=None, seed=None, filepath=None, greet=True):
+	def __init__(self, options=0, seed=None, name=None, file=None, greet=True):
 		self.name = name
-		self.filepath = filepath
-		self.filename = None
 
 		# From Header
 		self.unknown1 = None
@@ -470,10 +469,6 @@ Adventure: {0.adventure}
 
 
 	def look(self):
-#		if self.options & FLAG_USE_CURSES:
-#			self.win[0].erase()
-#			self.win[0].move(0, 0)
-
 		if self.bit_flags & Saga.FLAG_DARK \
 				and self.items[Saga.ITEM_LIGHT].location != Saga.LOC_CARRIED \
 				and self.items[Saga.ITEM_LIGHT].location != self.player_room:
@@ -557,7 +552,8 @@ Adventure: {0.adventure}
 				actions = {
 					'load': lambda filename: self.load_database(filename),
 					'restore': lambda filename: self.load_game(filename),
-					'save': lambda filename: self.save_game(filename)
+					'save': lambda filename: self.save_game(filename),
+					'quit': lambda verb: self.exit(1, '\nUser exit\n')
 				}
 				if verb[1:].lower() in actions:
 					actions[verb[1:].lower()](noun)
@@ -870,17 +866,18 @@ Adventure: {0.adventure}
 					param_id += 1
 					self.redraw = True
 				elif act == 88:
-					pass
+# JR-Not sure if this is necessary
 #					if self.options & FLAG_USE_CURSES:
 #						for win in self.win:
 #							win.refresh()
 
 					time.sleep(2)	# DOC's say 2 seconds. Spectrum times at 1.5
 				elif act == 89:
-					param_id += 1
 					# SAGA draw picture n
 					# Spectrum Seas of Blood - start combat ?
 					# Poking this into older spectrum games causes a crash
+					sys.stderr.write("Image: %d" % params[param_id])
+					param_id += 1
 				else:
 					sys.stderr.write('Unknown action {0:d} [Param begins {1:d} {2:d}]\n' \
 							.format(act, params[param_id], params[param_id + 1]))
@@ -1042,8 +1039,11 @@ Adventure: {0.adventure}
 		return fl
 
 
-	def game_loop(self):
-		while True:
+	def game_loop(self, iterations=-1):
+		while iterations:
+			if iterations != -1:
+				iterations -= 1
+
 			if self.redraw:
 				self.look()
 				self.redraw = False
@@ -1097,9 +1097,7 @@ Options:
   -r  Randomizer seed
 '''.format(argv[0]))
 
-def main(argv, obj_type=Saga):
-	import getopt
-
+def get_options(argv):
 	options = 0
 	seed = None
 
@@ -1137,6 +1135,12 @@ def main(argv, obj_type=Saga):
 			usage(argv[0])
 			sys.exit(2)
 
+	return (options, seed, args)
+
+
+def main(argv, obj_type=Saga):
+	(options, seed, args) = get_options(argv)
+
 	try:
 		filename = args[0]
 	except:
@@ -1159,7 +1163,7 @@ def main(argv, obj_type=Saga):
 
 	# Try to open the file and initialize the interpreter
 	with open(filename, 'r') as file:
-		saga = obj_type(name, file, options, seed, filepath)
+		saga = obj_type(options, seed, name, file)
 
 	# Generate a savename from the filename by replacing the extension
 	savename = os.path.join(savepath,
