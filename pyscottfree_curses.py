@@ -23,24 +23,31 @@
 __author__ = 'Jon Ruttan'
 __copyright__ = 'Copyright (C) 2010 Jon Ruttan'
 __license__ = 'Distributed under the GNU software license'
-__version__ = '0.1.0'
+__version__ = '0.1.3'
 
 from pyscottfree import Saga, wrap_str, main
 
+import sys
 import curses
+import signal
 
 class CursesSaga(Saga):
-	def __init__(self, name, file, options = None, seed = None, filepath=None, greet=True):
+	def __init__(self, options=0, seed=None, name=None, file=None, greet=True):
 		curses_up = False			# Curses up
 
-		Saga.__init__(self, name, file, options, seed, filepath, False)
+		Saga.__init__(self, options, seed, name, file, False)
 
 		self.win = [None, None]
 		self.win_height = (10, 14)		# Height of the curses windows
 
-		pprint(self.win)
 		curses.initscr()
 		self.curses = True
+
+		signal.signal(signal.SIGINT, self.aborted)	# For curses
+		signal.signal(signal.SIGQUIT, signal.SIG_IGN)
+		signal.signal(signal.SIGTSTP, signal.SIG_IGN)
+
+
 		self.win[0] = curses.newwin(self.win_height[0], self.width, 0, 0)
 		self.win[1] = curses.newwin(self.win_height[1], self.width, self.win_height[0], 0)
 		self.win[0].leaveok(True)
@@ -50,15 +57,17 @@ class CursesSaga(Saga):
 		curses.noecho()
 		curses.cbreak()
 		self.win[1].move(self.win_height[1] -1, 0)
-		self.greet()
+		self.output(self.greeting())
+
+	def aborted(self, signum, frame):
+		self.exit(1, '\nUser exit\n')
 
 	def exit(self, errno = 0, str = None):
-		if curses_up:
+		if self.curses:
 			curses.nocbreak()
 			curses.echo()
 			curses.endwin()
-
-		self.input('\nPress Enter to continue...')
+			self.curses = False
 
 		Saga.exit(self, errno, str)
 
@@ -108,6 +117,11 @@ class CursesSaga(Saga):
 		self.output_reset()
 
 		return str.strip()
+
+	def look(self):
+		self.win[0].erase()
+		self.win[0].move(0, 0)
+		Saga.look(self)
 
 
 if __name__ == '__main__':
