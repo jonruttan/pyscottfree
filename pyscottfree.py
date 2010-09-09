@@ -35,7 +35,10 @@ from pprint import pprint
 
 ENV_FILE = 'SCOTTFREE_PATH'
 ENV_SAVE = 'SCOTTFREE_SAVE'
-DIR_SAVE = '%s/.scottfree/' % os.environ.get('HOME')
+home = os.environ.get('HOME')
+if home is None:
+	home = './'
+DIR_SAVE = '%s/.scottfree/' % home
 EXT_SAVE = '.sav'
 
 def random_percent(n):
@@ -513,6 +516,8 @@ Adventure: {0.adventure}
 		if self.options & Saga.FLAG_TRS80_STYLE:
 			self.output(self.string('trs80 line'), 0, False)
 
+	def display_image(self, id):
+		pass
 
 	def which_word(self, word, list):
 		if not word:
@@ -876,7 +881,7 @@ Adventure: {0.adventure}
 					# SAGA draw picture n
 					# Spectrum Seas of Blood - start combat ?
 					# Poking this into older spectrum games causes a crash
-					sys.stderr.write("Image: %d" % params[param_id])
+					self.display_image(params[param_id])
 					param_id += 1
 				else:
 					sys.stderr.write('Unknown action {0:d} [Param begins {1:d} {2:d}]\n' \
