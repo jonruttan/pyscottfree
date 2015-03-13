@@ -1,0 +1,2 @@
+PyScottFree is a Python program to run Scott Adams databases used primarily by Adventure International and Brian Howarth.
+The original version was written in C by Alan Cox.  The current version was translated from C into Python by Jon Ruttan.
