@@ -23,7 +23,7 @@
 __author__ = 'Jon Ruttan'
 __copyright__ = 'Copyright (C) 2011 Jon Ruttan'
 __license__ = 'Distributed under the GNU software license'
-__version__ = '0.8.4'
+__version__ = '0.8.5'
 
 import sys
 import os
@@ -112,6 +112,7 @@ class Action:
 		self.vocab = read_number(file)
 		self.condition = [read_number(file) for i in range(0, 5)]
 		self.action = [read_number(file) for i in range(0, 2)]
+		return self
 
 	def to_string(self):
 		return 'Action(Vocab: {0:d}, Condition: {1}, Action: {2})'.format( \
@@ -128,6 +129,7 @@ class Room:
 	def read(self, file):
 		self.exits = [read_number(file) for i in range(0, 6)]
 		self.text = read_string(file)
+		return self
 
 	def to_string(self):
 		return 'Room(Text: {0}, Exits: {1})'.format( \
@@ -153,6 +155,7 @@ class Item:
 			self.auto_get = ''
 
 		self.initial_loc = self.location = read_number(file)
+		return self
 
 	def to_string(self):
 		return 'Item(Text: "{0}", Location: {1}, Initial Location: {2}, Auto Get: {3})'.format( \
@@ -355,13 +358,14 @@ Adventure: {0.adventure}
 		return self.strings[name][self.options & option_flag and 1 or 0]
 
 	def clear_screen(self):
-		pass
+		return self
 
 	def output_reset(self, win=1, scroll=False):
-		pass
+		return self
 
 	def output(self, str, win=1, scroll=True, wrap=True):
 		sys.stdout.write(wrap_str(str, self.width))
+		return self
 
 	def input(self, str='', win=1):
 		return raw_input(str).strip()
@@ -469,7 +473,7 @@ Adventure: {0.adventure}
 			self.dump()
 
 		self.redraw = True
-
+		return self
 
 	def look(self):
 		if self.bit_flags & Saga.FLAG_DARK \
@@ -518,6 +522,7 @@ Adventure: {0.adventure}
 	def display_image(self, id):
 		if self.options(Saga.FLAG_DEBUGGING):
 			print 'Image: %d' % id
+		return self
 
 	def which_word(self, word, list):
 		if not word:
@@ -616,6 +621,7 @@ Adventure: {0.adventure}
 		except IOError:
 			self.output(self.string('save error'))
 
+		return self
 
 	def load_game(self, filename = None):
 		default = DIR_SAVE + self.name + EXT_SAVE
@@ -657,6 +663,7 @@ Adventure: {0.adventure}
 		except IOError:
 			self.fatal(self.string('load error'))
 
+		return self
 
 	def done_game(self):
 		self.output(self.string('game over'))
@@ -1079,6 +1086,8 @@ Adventure: {0.adventure}
 							self.output(self.string('light out in').format(self.light_time))
 						elif(self.light_time % 5 == 0):
 							self.output(self.string('light dim'))
+
+		return self
 
 def usage(argv):
 		sys.stderr.write('''Usage: {0} [options] <gamename> [savedgame]
