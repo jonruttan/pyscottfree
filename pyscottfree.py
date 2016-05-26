@@ -23,7 +23,7 @@
 __author__ = 'Jon Ruttan'
 __copyright__ = 'Copyright (C) 2010 Jon Ruttan'
 __license__ = 'Distributed under the GNU software license'
-__version__ = '0.8.2'
+__version__ = '0.8.3'
 
 import sys
 import os
@@ -475,9 +475,9 @@ Adventure: {0.adventure}
 		if self.bit_flags & Saga.FLAG_DARK \
 				and self.items[Saga.ITEM_LIGHT].location != Saga.LOC_CARRIED \
 				and self.items[Saga.ITEM_LIGHT].location != self.player_room:
-			self.output(self.string('too dark', FLAG_YOUARE), 0, False)
+			self.output(self.string('too dark', Saga.FLAG_YOUARE), 0, False)
 
-			if self.options & FLAG_TRS80_STYLE:
+			if self.options & Saga.FLAG_TRS80_STYLE:
 				self.output(self.string('trs80 line'), 0, False)
 
 			return
@@ -499,7 +499,6 @@ Adventure: {0.adventure}
 		items = map(lambda item: item.text, filter(lambda item: item.location == self.player_room, self.items))
 		if len(items):
 			separator = self.string('list separator', Saga.FLAG_TRS80_STYLE)
-#			self.output(self.string('also see', FLAG_YOUARE).format(joiner.join(items)), 0, False, self.width -10)
 			lines = [self.string('also see', Saga.FLAG_YOUARE)]
 			for item in items:
 				if len(lines[-1]) + len(item) > self.width - 10:
@@ -872,7 +871,7 @@ Adventure: {0.adventure}
 					self.redraw = True
 				elif act == 88:
 # JR-Not sure if this is necessary
-#					if self.options & FLAG_USE_CURSES:
+#					if self.options & Saga.FLAG_USE_CURSES:
 #						for win in self.win:
 #							win.refresh()
 
