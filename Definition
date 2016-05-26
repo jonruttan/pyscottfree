@@ -15,7 +15,7 @@ A game consists of a header of 14 values each apparently 16 bit
 	in game. Brian Howarths games allow -1 for never run down. When
 	it runs out the light item (9) is dumped in room 0 and a look
 	done. Messages vary between interpreters and include things
-	like 'Your light is flickering and dying' as well as 
+	like 'Your light is flickering and dying' as well as
 	'Light runs out in %d turns'.
 10	Number of Messages
 11	Room you must put treasure in to score points. Not all games use
@@ -49,7 +49,7 @@ Conditions
 5	Item <arg> not in room with player
 6	Item <arg> not carried
 7	Not in room <arg>
-8	BitFlag <arg> is set. 
+8	BitFlag <arg> is set.
 9	BitFlag <arg> is cleared
 10	Something carried	(arg unused)
 11	Nothing carried		(arg unused)
@@ -77,11 +77,11 @@ Actions
 60	BitFlag <arg> is cleared
 61	Death. Dark flag cleared, player moved to last room
 62	Item <arg> put in room <arg>
-63	Game over. 
+63	Game over.
 64	Describe room
 65	Score
 66	Inventory
-67	BitFlag 0 is set	
+67	BitFlag 0 is set
 68	BitFlag 0 is cleared
 69	Refill lamp (?)
 70	Screen is cleared. This varies by driver from no effect upwards
@@ -138,5 +138,5 @@ actions, and are comments. The Spectrum and C64 tape system where the
 database is compiled into the program has no comments.
 
 Finally three values follow which are version, adventure number and an
-unknown magic number. 
+unknown magic number.
 
