@@ -21,9 +21,9 @@
 #
 
 __author__ = 'Jon Ruttan'
-__copyright__ = 'Copyright (C) 2010 Jon Ruttan'
+__copyright__ = 'Copyright (C) 2011 Jon Ruttan'
 __license__ = 'Distributed under the GNU software license'
-__version__ = '0.8.3'
+__version__ = '0.8.4'
 
 import sys
 import os
@@ -516,7 +516,8 @@ Adventure: {0.adventure}
 			self.output(self.string('trs80 line'), 0, False)
 
 	def display_image(self, id):
-		pass
+		if self.options(Saga.FLAG_DEBUGGING):
+			print 'Image: %d' % id
 
 	def which_word(self, word, list):
 		if not word:
@@ -539,48 +540,45 @@ Adventure: {0.adventure}
 
 
 	def get_input(self):
-		while True:
-			while True:
-				buf = self.input(self.string('input'))
-				self.output_reset()
+		buf = self.input(self.string('input'))
+		self.output_reset()
 
-				if len(buf):
+		if not len(buf):
+			return None
+
+		words = buf.split(' ')
+		verb = words[0]
+
+		noun = len(words) > 1 and words[1] or None
+
+		if verb.startswith(':'):
+			actions = {
+				'load': lambda filename: self.load_database(filename),
+				'restore': lambda filename: self.load_game(filename),
+				'save': lambda filename: self.save_game(filename),
+				'quit': lambda verb: self.exit(1, '\nUser exit\n')
+			}
+			if verb[1:].lower() in actions:
+				actions[verb[1:].lower()](noun)
+				return None
+
+		if(noun == None and len(verb) == 1):
+			for k, v in self.shortforms.iteritems():
+				if k == verb.lower():
+					verb = v
 					break
 
-			words = buf.split(' ')
-			verb = words[0]
+		noun_id = self.which_word(verb, self.nouns)
+		# The Scott Adams system has a hack to avoid typing 'go'
+		if noun_id >= 1 and noun_id <= 6:
+			verb_id = 1
+		else:
+			verb_id = self.which_word(verb, self.verbs)
+			noun_id = self.which_word(noun, self.nouns)
 
-			noun = len(words) > 1 and words[1] or None
-
-			if verb.startswith(':'):
-				actions = {
-					'load': lambda filename: self.load_database(filename),
-					'restore': lambda filename: self.load_game(filename),
-					'save': lambda filename: self.save_game(filename),
-					'quit': lambda verb: self.exit(1, '\nUser exit\n')
-				}
-				if verb[1:].lower() in actions:
-					actions[verb[1:].lower()](noun)
-					return None
-
-			if(noun == None and len(verb) == 1):
-				for k, v in self.shortforms.iteritems():
-					if k == verb.lower():
-						verb = v
-						break
-
-			noun_id = self.which_word(verb, self.nouns)
-			# The Scott Adams system has a hack to avoid typing 'go'
-			if noun_id >= 1 and noun_id <= 6:
-				verb_id = 1
-			else:
-				verb_id = self.which_word(verb, self.verbs)
-				noun_id = self.which_word(noun, self.nouns)
-
-			if verb_id == -1:
-				self.output(self.string('unknown word'))
-			else:
-				break
+		if verb_id == -1:
+			self.output(self.string('unknown word'))
+			return None
 
 		self.noun_text = noun	# Needed by GET/DROP hack
 		return (verb_id, noun_id)
