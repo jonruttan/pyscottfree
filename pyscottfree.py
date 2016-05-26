@@ -23,7 +23,7 @@
 __author__ = 'Jon Ruttan'
 __copyright__ = 'Copyright (C) 2011 Jon Ruttan'
 __license__ = 'Distributed under the GNU software license'
-__version__ = '0.8.5'
+__version__ = '0.8.6'
 
 import sys
 import os
@@ -33,6 +33,7 @@ import random
 
 from pprint import pprint
 
+DIR_APP = 'scottfree'
 ENV_FILE = 'SCOTTFREE_PATH'
 ENV_SAVE = 'SCOTTFREE_SAVE'
 home = os.environ.get('HOME')
@@ -60,12 +61,16 @@ def wrap_str(text, width = 80):
 def read_next(file, quote=None, type=None, bytes=1):
 	while not len(read_next.string):
 		# Read in the next line and strip the whitespace
-		read_next.string = file.readline().strip()
+		string = file.readline()
+		if not len(string):
+			return None
+		read_next.string = string.strip()
 
 	if quote != None:
 		# If the string doesn't start with a quote, complain and exit
 		if not read_next.string.startswith(quote):
-			self.fatal('Initial quote({0}) expected -- {1}'.format(quote, read_next.string))
+			#self.fatal('Initial quote({0}) expected -- {1}'.format(quote, read_next.string))
+			return None
 
 		while True:
 			end = read_next.string[1:].find(quote)
@@ -95,11 +100,15 @@ def read_next(file, quote=None, type=None, bytes=1):
 read_next.string = ''
 
 def read_number(file, bytes = 1):
-	return int(read_next(file))
+	val = read_next(file)
+	return val is not None and int(val) or 0
 
 def read_string(file):
 	return read_next(file, '"')
 
+def read_any(file):
+	string = read_string(file)
+	return string is not None and string or read_number(file)
 
 
 class Action:
@@ -149,7 +158,7 @@ class Item:
 		self.text = words[0]
 
 		# Some games use // to mean no auto get/drop word!
-		if len(words) > 1 and len(words[1]) and not words[1][1] in ('/', '*'):
+		if len(words) > 1 and len(words[1]) > 1 and not words[1][1] in ('/', '*'):
 			self.auto_get = words[1]
 		else:
 			self.auto_get = ''
@@ -314,26 +323,35 @@ Release 1.14, (c) 1993,1994,1995 Swansea University Computer Society.
 	def dump(self):
 		print '''
 --Game--
-Items: [{1}]
-Actions: [{2}]
+Items: [
+{1}
+]
+Actions: [
+{2}
+]
 Verbs: {0.verbs}
 Nouns: {0.nouns}
-Rooms: [{3}]
+Rooms: [
+{3}
+]
 Max Carry: {0.max_carry}
 Player Room: {0.player_room}
 Treasures: {0.treasures}
 Word Length: {0.word_length}
 Light Time: {0.light_time}
-Messages: [{0.messages}]
+Messages: [
+{4}
+]
 Treasure Room: {0.treasure_room}
 
 Version: {0.version}
 Adventure: {0.adventure}
 '''.format( \
 				self, \
-				', \n'.join(map(lambda obj: obj.to_string(), self.items)),
-				', \n'.join(map(lambda obj: obj.to_string(), self.actions)),
-				', \n'.join(map(lambda obj: obj.to_string(), self.rooms))
+				', \n'.join(map(lambda obj: "\t"+obj.to_string(), self.items)),
+				', \n'.join(map(lambda obj: "\t"+obj.to_string(), self.actions)),
+				', \n'.join(map(lambda obj: "\t"+obj.to_string(), self.rooms)),
+				', \n'.join(map(lambda s: "\t"+s, self.messages)),
 		)
 
 	def exit(self, errno = 0, errstr = None):
@@ -409,11 +427,18 @@ Adventure: {0.adventure}
 		return -1
 
 
-	def load_database(self, file=None):
+	def load_database(self, file=None, name=None):
 		if file is None:
 			return False
 
-		keys = [0, 'ni', 'na', 'nw', 'nr', 'mc', 'pr', 'tr', 'wl', 'lt', 'mn', 'trm']
+		if name is None:
+			name = os.path.splitext(os.path.split(file.name)[1])[0]
+
+		self.name = read_any(file)
+		if type(self.name) is not 'str':
+			self.name = name
+
+		keys = ['ni', 'na', 'nw', 'nr', 'mc', 'pr', 'tr', 'wl', 'lt', 'mn', 'trm']
 		data = {}
 		for key in keys:
 			data[key] = read_number(file)
@@ -469,8 +494,8 @@ Adventure: {0.adventure}
 					.format(self.version / 100, self.version % 100, self.adventure)
 
 
-		if self.option(Saga.FLAG_DEBUGGING):
-			self.dump()
+		#if self.option(Saga.FLAG_DEBUGGING):
+		#	self.dump()
 
 		self.redraw = True
 		return self
@@ -519,9 +544,14 @@ Adventure: {0.adventure}
 		if self.options & Saga.FLAG_TRS80_STYLE:
 			self.output(self.string('trs80 line'), 0, False)
 
+		self.display_image(self.player_room)
+		return self
+
 	def display_image(self, id):
-		if self.options(Saga.FLAG_DEBUGGING):
-			print 'Image: %d' % id
+		if id is None:
+			return False
+		if self.option(Saga.FLAG_DEBUGGING):
+			print 'Display Image: %d\n' % id
 		return self
 
 	def which_word(self, word, list):
@@ -589,7 +619,7 @@ Adventure: {0.adventure}
 		return (verb_id, noun_id)
 
 	def save_game(self, filename = None):
-		default = DIR_SAVE + self.name + EXT_SAVE
+		default = os.path.join(DIR_SAVE, self.name + EXT_SAVE)
 
 		if filename == None:
 			filename = self.input(self.string('filename').format(default)).strip()
@@ -623,8 +653,9 @@ Adventure: {0.adventure}
 
 		return self
 
-	def load_game(self, filename = None):
-		default = DIR_SAVE + self.name + EXT_SAVE
+
+	def load_game(self, filename=None):
+		default = os.path.join(DIR_SAVE, self.name + EXT_SAVE)
 
 		if filename == None:
 			filename = self.input(self.string('filename').format(default)).strip()
@@ -677,8 +708,8 @@ Adventure: {0.adventure}
 		for i in action.condition:
 			(dv, cv) = divmod(i, 20)
 
-			if self.options & Saga.FLAG_DEBUGGING:
-				sys.stderr.write('Perform Line - cv: {0}, dv: {1}'.format(cv, dv))
+			#if self.options & Saga.FLAG_DEBUGGING:
+			#	sys.stderr.write('Perform Line - cv: {0}, dv: {1}\n'.format(cv, dv))
 
 			if cv == 0:
 				params[param_id] = dv
@@ -713,8 +744,8 @@ Adventure: {0.adventure}
 		param_id = 0
 		for action in action.action:
 			for act in divmod(action, 150):
-				if self.options & Saga.FLAG_DEBUGGING:
-					sys.stderr.write('Action - {0}'.format(act))
+				#if self.options & Saga.FLAG_DEBUGGING:
+				#	sys.stderr.write('Action - {0}\n'.format(act))
 
 				if act >= 1 and act < 52:
 					self.output(self.messages[act] + '\n')
@@ -885,7 +916,9 @@ Adventure: {0.adventure}
 					# SAGA draw picture n
 					# Spectrum Seas of Blood - start combat ?
 					# Poking this into older spectrum games causes a crash
-					self.display_image(params[param_id])
+					#if self.option(Saga.FLAG_DEBUGGING):
+					print 'Display Image\n'
+					self.display_image(len(self.rooms)+params[param_id])
 					param_id += 1
 				else:
 					sys.stderr.write('Unknown action {0:d} [Param begins {1:d} {2:d}]\n' \
@@ -924,8 +957,8 @@ Adventure: {0.adventure}
 		fl = -1
 		do_again = False
 		for action in self.actions:
-			if self.options & Saga.FLAG_DEBUGGING:
-				sys.stderr.write(action.to_string())
+			#if self.options & Saga.FLAG_DEBUGGING:
+			#	sys.stderr.write(action.to_string())
 
 			vv = nv = action.vocab
 
@@ -943,8 +976,8 @@ Adventure: {0.adventure}
 			nv %= 150
 			vv /= 150
 
-			if self.options & Saga.FLAG_DEBUGGING:
-				sys.stderr.write('Verb: {0}, Noun: {1}, Action(Verb: {2}, Noun: {3})'.format(verb_id, noun_id, vv, nv))
+			#if self.options & Saga.FLAG_DEBUGGING:
+			#	sys.stderr.write('Verb: {0}, Noun: {1}, Action(Verb: {2}, Noun: {3})\n'.format(verb_id, noun_id, vv, nv))
 
 			if vv == verb_id or (do_again and action.vocab == 0):
 				if (vv == 0 and random_percent(nv)) \
@@ -1157,7 +1190,7 @@ def main(argv, obj_type=Saga):
 	except:
 		filename = raw_input('Filename: ').strip()
 
-	filepath = os.environ.get(ENV_FILE)
+	filepath = os.getenv(ENV_FILE, self.filepath)
 	if filepath is None:
 		filepath = ''
 
@@ -1168,7 +1201,7 @@ def main(argv, obj_type=Saga):
 			os.mkdir(savepath)
 
 	if not os.path.exists(filename):
-		filename = os.path.join(self.filepath, filename)
+		filename = os.path.join(filepath, filename)
 
 	name = os.path.splitext(os.path.basename(filename))[0]
 
