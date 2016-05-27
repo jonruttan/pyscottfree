@@ -419,7 +419,7 @@ Adventure: {0.adventure}
     def input_read(self, str='', win=1):
         try:
             return raw_input(str)
-        except KeyboardInterrupt:
+        except(KeyboardInterrupt, EOFError):
             self.aborted()
 
     def input(self, str='', win=1):
