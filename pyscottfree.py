@@ -397,6 +397,9 @@ Adventure: {0.adventure}
     def output(self, obj, win=1, scroll=True, wrap=True):
         string = str(obj)
 
+        if not string[-1].isspace():
+            string += ' '
+
         if wrap is True:
             wrap = self.width - 2
 
