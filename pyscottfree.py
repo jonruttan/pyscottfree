@@ -394,7 +394,9 @@ Adventure: {0.adventure}
         sys.stdout.write(str)
         return self
 
-    def output(self, str, win=1, scroll=True, wrap=True):
+    def output(self, obj, win=1, scroll=True, wrap=True):
+        string = str(obj)
+
         if wrap is True:
             wrap = self.width - 2
 
@@ -404,9 +406,11 @@ Adventure: {0.adventure}
                 replace_whitespace=False,
                 drop_whitespace=False
             )
-            str = ''.join([wrapper.fill(str) for str in str.splitlines(True)])
+            string = ''.join(
+                [wrapper.fill(string) for string in string.splitlines(True)]
+            )
 
-        self.output_write(str, win, scroll)
+        self.output_write(string, win, scroll)
         return self
 
     def input_read(self, str='', win=1):
