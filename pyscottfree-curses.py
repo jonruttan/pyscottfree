@@ -67,14 +67,12 @@ class CursesSaga(Saga):
     def aborted(self, signum, frame):
         self.exit(0, '\nUser exit')
 
-    def exit(self, errno=0, str=None):
+    def do_exit(self, errno=0, str=None):
         if self.curses_up:
             curses.nocbreak()
             curses.echo()
             curses.endwin()
             self.curses_up = False
-
-        Saga.exit(self, errno, str)
 
     def clear_screen(self):
         Saga.clear_screen(self)
