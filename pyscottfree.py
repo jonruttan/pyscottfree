@@ -46,60 +46,61 @@ def random_percent(n):
     return random.randint(0, 99) < n
 
 
-def read_next(file, quote=None, type=None, bytes=1):
-    while not len(read_next.string):
-        # Read in the next line and strip the whitespace
-        string = file.readline()
-        if not len(string):
-            return None
-        read_next.string = string.strip()
+class Database:
+    def __init__(self, file):
+        self.file = file
+        self.next_string = ''
 
-    if quote is not None:
-        # If the string doesn't start with a quote, complain and exit
-        if not read_next.string.startswith(quote):
-            #self.fatal('Initial quote({0}) expected -- {1}'.format(quote, read_next.string))
-            return None
+    def read_next(self, quote=None, type=None, bytes=1):
+        while not len(self.next_string):
+            # Read in the next line and strip the whitespace
+            string = self.file.readline()
+            if not len(string):
+                return None
+            self.next_string = string.strip()
 
-        while True:
-            end = read_next.string[1:].find(quote)
-            # If the string doesn't end with a quote, complain and exit
+        if quote is not None:
+            # If the string doesn't start with a quote, complain and exit
+            if not self.next_string.startswith(quote):
+                # self.fatal('Initial quote({0}) expected -- {1}'
+                #            .format(quote, self.next_string))
+                return None
+
+            while True:
+                end = self.next_string[1:].find(quote)
+                # If the string doesn't end with a quote, complain and exit
+                if end == -1:
+                    self.next_string += '\n' + self.file.readline().strip()
+                else:
+                    end += 2
+                    break
+
+            string = self.next_string[:end].strip('"').replace('`', '"')
+
+        else:
+            end = self.next_string.find(' ')
             if end == -1:
-                read_next.string += '\n' + file.readline().strip()
-            else:
-                end += 2
-                break
+                end = len(self.next_string)
 
-        string = read_next.string[:end].strip('"').replace('`', '"')
+            string = self.next_string[:end]
 
-    else:
-        end = read_next.string.find(' ')
-        if end == -1:
-            end = len(read_next.string)
+            if string == str((1 << (bytes << 3)) - 1):
+                string = '-1'
 
-        string = read_next.string[:end]
+        self.next_string = self.next_string[end+1:]
 
-        if string == str((1 << (bytes << 3)) - 1):
-            string = '-1'
+        return string
 
-    read_next.string = read_next.string[end+1:]
+    def read_number(self, bytes=1):
+        val = self.read_next()
+        return val is not None and int(val) or 0
 
-    return string
+    def read_string(self):
+        return self.read_next('"')
 
-read_next.string = ''
-
-
-def read_number(file, bytes=1):
-    val = read_next(file)
-    return val is not None and int(val) or 0
-
-
-def read_string(file):
-    return read_next(file, '"')
-
-
-def read_any(file):
-    string = read_string(file)
-    return string is not None and string or read_number(file)
+    def read_any(self):
+        string = self.read_string()
+        return string is not None and string or self.read_number()
 
 
 class Action:
@@ -108,10 +109,10 @@ class Action:
         self.condition = [None] * 5
         self.action = [None] * 2
 
-    def read(self, file):
-        self.vocab = read_number(file)
-        self.condition = [read_number(file) for i in range(0, 5)]
-        self.action = [read_number(file) for i in range(0, 2)]
+    def read(self, database):
+        self.vocab = database.read_number()
+        self.condition = [database.read_number() for i in range(0, 5)]
+        self.action = [database.read_number() for i in range(0, 2)]
         return self
 
     def to_string(self):
@@ -127,9 +128,9 @@ class Room:
         self.text = None
         self.exits = [None] * 6
 
-    def read(self, file):
-        self.exits = [read_number(file) for i in range(0, 6)]
-        self.text = read_string(file)
+    def read(self, database):
+        self.exits = [database.read_number() for i in range(0, 6)]
+        self.text = database.read_string()
         return self
 
     def to_string(self):
@@ -146,8 +147,8 @@ class Item:
         self.initial_loc = None
         self.auto_get = None
 
-    def read(self, file):
-        words = read_string(file).split('/')
+    def read(self, database):
+        words = database.read_string().split('/')
         self.text = words[0]
 
         # Some games use // to mean no auto get/drop word!
@@ -156,7 +157,7 @@ class Item:
         else:
             self.auto_get = ''
 
-        self.initial_loc = self.location = read_number(file)
+        self.initial_loc = self.location = database.read_number()
         return self
 
     def to_string(self):
@@ -351,7 +352,7 @@ Adventure: {0.adventure}
             ', \n'.join(map(lambda obj: "\t"+obj.to_string(), self.actions)),
             ', \n'.join(map(lambda obj: "\t"+obj.to_string(), self.rooms)),
             ', \n'.join(map(lambda s: "\t"+s, self.messages)),
-        ))
+           ))
 
     def do_exit(self, errno=0, errstr=None):
         if errstr is not None:
@@ -464,14 +465,15 @@ Adventure: {0.adventure}
         if name is None:
             name = os.path.splitext(os.path.split(file.name)[1])[0]
 
-        self.name = read_any(file)
+        database = Database(file)
+        self.name = database.read_any()
         if type(self.name) is not 'str':
             self.name = name
 
         keys = ['ni', 'na', 'nw', 'nr', 'mc', 'pr', 'tr', 'wl', 'lt', 'mn', 'trm']
         data = {}
         for key in keys:
-            data[key] = read_number(file)
+            data[key] = database.read_number()
 
         self.items = [Item() for i in range(0, data['ni'] + 1)]
         self.actions = [Action() for i in range(0, data['na'] + 1)]
@@ -489,35 +491,35 @@ Adventure: {0.adventure}
         if self.option(Saga.FLAG_VERBOSE, Saga.FLAG_DEBUGGING):
             print('Reading {0:d} actions.'.format(data['na']))
         for action in self.actions:
-            action.read(file)
+            action.read(database)
 
         if self.option(Saga.FLAG_VERBOSE, Saga.FLAG_DEBUGGING):
             print('Reading {0:d} word pairs.'.format(data['nw']))
         for i in range(0, data['nw'] + 1):
-            self.verbs[i] = read_string(file)
-            self.nouns[i] = read_string(file)
+            self.verbs[i] = database.read_string()
+            self.nouns[i] = database.read_string()
 
         if self.option(Saga.FLAG_VERBOSE, Saga.FLAG_DEBUGGING):
             print('Reading {0:d} rooms.'.format(data['nr']))
         for room in self.rooms:
-            room.read(file)
+            room.read(database)
 
         if self.option(Saga.FLAG_VERBOSE, Saga.FLAG_DEBUGGING):
             print('Reading {0:d} messages.'.format(data['mn']))
         for i in range(0, data['mn'] + 1):
-            self.messages[i] = read_string(file)
+            self.messages[i] = database.read_string()
 
         if self.option(Saga.FLAG_VERBOSE, Saga.FLAG_DEBUGGING):
             print('Reading {0:d} items. '.format(data['ni']))
         for item in self.items:
-            item.read(file)
+            item.read(database)
 
         # Discard Comment Strings
         for i in range(0, data['na'] + 1):
-            read_string(file)
+            database.read_string()
 
-        self.version = read_number(file)
-        self.adventure = read_number(file)
+        self.version = database.read_number()
+        self.adventure = database.read_number()
 
         if self.option(Saga.FLAG_VERBOSE, Saga.FLAG_DEBUGGING):
             print('Version {0:d}.{1:02d} of Adventure {2:d}\nLoad Complete.\n'
@@ -691,30 +693,29 @@ Adventure: {0.adventure}
             filename = default
 
         try:
-            file = open(filename, 'r')
+            with open(filename, 'r') as file:
+                database = Database(file)
 
-            if self.options & Saga.FLAG_VERBOSE:
-                print('Loading from "{0}"'.format(filename))
+                if self.options & Saga.FLAG_VERBOSE:
+                    print('Loading from "{0}"'.format(filename))
 
-            for i in range(0, 16):
-                self.counters[i] = read_number(file)
-                self.room_saved[i] = read_number(file)
+                for i in range(0, 16):
+                    self.counters[i] = database.read_number()
+                    self.room_saved[i] = database.read_number()
 
-            self.bit_flags = read_number(file)
-            dark_flag = read_number(file)
-            self.player_room = read_number(file)
-            self.current_counter = read_number(file)
-            self.saved_room = read_number(file)
-            self.light_time = read_number(file)
+                self.bit_flags = database.read_number()
+                dark_flag = database.read_number()
+                self.player_room = database.read_number()
+                self.current_counter = database.read_number()
+                self.saved_room = database.read_number()
+                self.light_time = database.read_number()
 
-            # Backward compatibility
-            if dark_flag:
-                self.bit_flags |= Saga.FLAG_DARK
+                # Backward compatibility
+                if dark_flag:
+                    self.bit_flags |= Saga.FLAG_DARK
 
-            for item in self.items:
-                item.location = read_number(file)
-
-            file.close()
+                for item in self.items:
+                    item.location = database.read_number()
 
             if self.options & Saga.FLAG_VERBOSE:
                 print('Loaded.')
