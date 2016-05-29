@@ -353,14 +353,15 @@ Adventure: {0.adventure}
             ', \n'.join(map(lambda s: "\t"+s, self.messages)),
         ))
 
+    def do_exit(self, errno=0, errstr=None):
+        if errstr is not None:
+            sys.stderr.write(errstr)
+
     def exit(self, errno=0, errstr=None):
         if self.options & Saga.FLAG_WAIT_ON_EXIT:
             time.sleep(5)
 
-        if errstr is not None:
-            sys.stderr.write(errstr)
-
-        # TODO: Handle exit in a better manner
+        self.do_exit(errno, errstr)
         sys.exit(errno)
 
     def aborted(self):
