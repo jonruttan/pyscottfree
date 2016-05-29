@@ -186,8 +186,15 @@ class Saga:
     FLAG_DARK = 0x8000
     FLAG_LIGHT_OUT = 0x10000        # Light gone out
 
+    STATE_ERR = -1                  # Error
+    STATE_NONE = 0                  # Uninitialised
+    STATE_INIT = 1                  # Initialized
+    STATE_RUN  = 2                  # Database loaded, game running
+    STATE_WAIT = 3                  # Waiting for external process
+
     def __init__(self, options=0, seed=None, name=None, file=None, greet=True):
         self.name = name
+        self.state = Saga.STATE_NONE
 
         # From Header
         self.unknown1 = None
@@ -304,10 +311,11 @@ class Saga:
             'light dim': "Your light is growing dim. "
         }
 
-        self.load_database(file)
-
         # Initialize the random number generator, None will use the system time
         random.seed(seed)
+
+        self.state = Saga.STATE_INIT
+        self.load_database(file)
 
         if greet:
             self.output(self.greeting())
@@ -369,6 +377,7 @@ Adventure: {0.adventure}
         self.exit(0, '\nUser exit\n')
 
     def fatal(self, str):
+        self.state = Saga.STATE_ERR
         self.exit(1, '\n{0}.\n'.format(str))
 
     def option(self, *options):
@@ -529,6 +538,7 @@ Adventure: {0.adventure}
         #   self.dump()
 
         self.redraw = True
+        self.state = Saga.STATE_RUN
         return self
 
     def look(self):
