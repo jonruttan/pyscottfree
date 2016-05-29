@@ -157,6 +157,9 @@ class TkSaga(Saga):
         self.win[win].insert('end', string, ('WIN0', 'WIN1')[win])
         self.win[win].see('end')
 
+    def output(self, string, win=1, scroll=True):
+        return Saga.output(self, string, win, False)
+
     def input_read(self, string='', win=1):
         return self.entry.get()
 
