@@ -168,13 +168,6 @@ class Item:
         )
 
 
-class Tail:
-    def __init__(self):
-        self.version = None
-        self.adventure_number = None
-        self.unknown = None
-
-
 class Saga:
     LOC_DESTROYED = 0               # Destroyed
     LOC_CARRIED = 255               # Carried
