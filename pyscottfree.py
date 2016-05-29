@@ -1130,45 +1130,52 @@ Adventure: {0.adventure}
 
     def game_loop(self, iterations=-1):
         while iterations:
-            if iterations != -1:
-                iterations -= 1
+            if self.state is Saga.STATE_RUN:
+                if iterations != -1:
+                    iterations -= 1
 
-            if self.redraw:
-                self.look()
-                self.redraw = False
+                if self.redraw:
+                    self.look()
+                    self.redraw = False
 
-            self.perform_actions(0, 0)
-            if self.redraw:
-                self.look()
-                self.redraw = False
-            input = self.get_input()
-            if input is None:
-                continue
-            (verb, noun) = input
-            ret = self.perform_actions(verb, noun)
-            if ret < 0:
-                self.output(self.string('perform_actions')[abs(ret) - 1])
+                self.perform_actions(0, 0)
+                if self.redraw:
+                    self.look()
+                    self.redraw = False
 
-            # Brian Howarth games seem to use -1 for forever
-            if not self.test_light(Saga.LOC_DESTROYED) and self.light_time != - 1:
-                self.light_time -= 1
-                if self.light_time < 1:
-                    self.bit_flags |= Saga.FLAG_LIGHT_OUT
-                    if self.test_light(Saga.LOC_CARRIED, self.player_room):
-                        output(self.string('light out', Saga.FLAG_SCOTTLIGHT))
+                self.state = Saga.STATE_WAIT
 
-                    if self.options & Saga.FLAG_PREHISTORIC_LAMP:
-                        self.items[Saga.ITEM_LIGHT].location = Saga.LOC_DESTROYED
+            if self.state is Saga.STATE_WAIT:
+                input = self.get_input()
+                if input is None:
+                    break
 
-                elif self.light_time < 25:
-                    if self.test_light(Saga.LOC_CARRIED, self.player_room):
-                        if(self.options & Saga.FLAG_SCOTTLIGHT):
-                            self.output(
-                                self.string('light out in')
-                                .format(self.light_time)
-                            )
-                        elif(self.light_time % 5 == 0):
-                            self.output(self.string('light dim'))
+                self.state = Saga.STATE_RUN
+                (verb, noun) = input
+                ret = self.perform_actions(verb, noun)
+                if ret < 0:
+                    self.output(self.string('perform_actions')[abs(ret) - 1])
+
+                # Brian Howarth games seem to use -1 for forever
+                if not self.test_light(Saga.LOC_DESTROYED) and self.light_time != - 1:
+                    self.light_time -= 1
+                    if self.light_time < 1:
+                        self.bit_flags |= Saga.FLAG_LIGHT_OUT
+                        if self.test_light(Saga.LOC_CARRIED, self.player_room):
+                            self.output(self.string('light out', Saga.FLAG_SCOTTLIGHT))
+
+                        if self.options & Saga.FLAG_PREHISTORIC_LAMP:
+                            self.items[Saga.ITEM_LIGHT].location = Saga.LOC_DESTROYED
+
+                    elif self.light_time < 25:
+                        if self.test_light(Saga.LOC_CARRIED, self.player_room):
+                            if(self.options & Saga.FLAG_SCOTTLIGHT):
+                                self.output(
+                                    self.string('light out in')
+                                    .format(self.light_time)
+                                )
+                            elif(self.light_time % 5 == 0):
+                                self.output(self.string('light dim'))
 
         return self
 
