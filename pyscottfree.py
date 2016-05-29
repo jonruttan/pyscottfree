@@ -238,7 +238,7 @@ class Saga:
             # Names used for direction labels
             'exit names': ['North', 'South', 'East', 'West', 'Up', 'Down'],
 
-            # Separator used for lists; second entry tied to FLAG_TRS80_STYLE flag
+            # Separator used for lists; second entry tied to FLAG_TRS80_STYLE
             'list separator': [' - ', '. '],
 
             # Light out message; second entry tied to FLAG_SCOTTLIGHT flag
@@ -251,7 +251,7 @@ class Saga:
             ],
 
             # Rest of list is messages; second entry tied to FLAG_YOUARE flag
-            'trs80 line': '\n<------------------------------------------------------------>\n',
+            'trs80 line': '\n<' + '-' * (self.width - 4) + '>\n',
             'none': 'none',
             'file error': "Can't open '{0}'",
             'too dark': [
