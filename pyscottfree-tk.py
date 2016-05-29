@@ -91,43 +91,43 @@ class TkSaga(Saga):
         menubar.add_cascade(label="Help", underline=0, menu=help_menu)
         help_menu.add_command(label="About", command=self.on_about)
 
-        # Console0
+        # Frame
         frame = Tkinter.Frame(self.root)
         frame.pack(fill=Tkinter.BOTH, expand=Tkinter.YES)
-        console0 = Tkinter.Text(frame, width=40, height=10)
-        console0.pack(side=Tkinter.LEFT, fill=Tkinter.BOTH, expand=Tkinter.YES)
-        self.canvas = Tkinter.Canvas(frame, width=256, height=96)
-        # self.canvas.pack(
-        #     side=Tkinter.LEFT,
-        #     fill=Tkinter.BOTH,
-        #     expand=Tkinter.YES
-        # )
 
-        # Console
+        # Win0 - description - top,top-left
+        win0 = Tkinter.Text(frame, width=40, height=10)
+        win0.pack(side=Tkinter.LEFT, fill=Tkinter.BOTH, expand=Tkinter.YES)
+
+        # Canvas - images - upper-right
+        self.canvas = Tkinter.Canvas(frame, width=256, height=96)
         frame = Tkinter.Frame(self.root, relief=Tkinter.SUNKEN)
         frame.pack(side=Tkinter.TOP, fill=Tkinter.BOTH, expand=Tkinter.YES)
-        console = Tkinter.Text(frame, width=80, height=14)
-        console.pack(side=Tkinter.LEFT, fill=Tkinter.BOTH, expand=Tkinter.YES)
+
+        # Win1 - transcript - middle
+        win1 = Tkinter.Text(frame, width=80, height=14)
+        win1.pack(side=Tkinter.LEFT, fill=Tkinter.BOTH, expand=Tkinter.YES)
         scrollbar = Tkinter.Scrollbar(frame)
         scrollbar.pack(side=Tkinter.RIGHT, fill=Tkinter.Y)
-        console.config(yscrollcommand=scrollbar.set)
-        scrollbar.config(command=console.yview)
-        console.bind('<Key>', lambda e: 'break')  # ignore all key presses
+        win1.config(yscrollcommand=scrollbar.set)
+        scrollbar.config(command=win1.yview)
+        win1.bind('<Key>', lambda e: 'break')  # ignore all key presses
 
-        console0.tag_configure('WIN0', background='white', foreground='green4')
-        console.tag_configure('WIN1', background='white', foreground='blue4')
-        console.tag_configure('WIN2', background='white', foreground='red4')
-
-        # Entry
+        # Win2 - text entry - bottom
         frame = Tkinter.Frame(self.root)
         frame.pack(fill=Tkinter.X)
         label = Tkinter.Label(frame, text="Tell me what to do?")
         label.pack(side=Tkinter.LEFT)
-        entry = Tkinter.Entry(frame)
-        entry.pack(fill=Tkinter.X)
+        win2 = Tkinter.Entry(frame)
+        win2.pack(fill=Tkinter.X)
 
-        self.win = console0, console, entry
-        self.entry = entry
+        # Set the Window colours
+        win0.tag_configure('WIN0', background='white', foreground='green4')
+        win1.tag_configure('WIN1', background='white', foreground='blue4')
+        # win2.tag_configure('WIN2', background='white', foreground='red4')
+
+        self.win = win0, win1, win2
+        self.entry = win2
         self.entry.focus_set()
 
         self.root.bind('<Return>', self.on_input)
@@ -163,7 +163,7 @@ class TkSaga(Saga):
     def input(self, string='', win=1):
         string = Saga.input(self, string, win)
         self.entry.delete(0, Tkinter.END)
-        self.output(string+'\n')
+        self.output(string + '\n')
         return string
 
     def look(self):
