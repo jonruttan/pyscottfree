@@ -53,12 +53,12 @@ class TkSaga(Saga):
         # self.resize_filter = Image.BILINEAR
         # self.resize_filter = Image.BICUBIC
         # self.resize_filter = Image.ANTIALIAS
-        self.createWidgets()
+        self.create_widgets()
 
         Saga.__init__(self, options, seed, name, file, greet)
         self.width = self.win[0]['width']
 
-    def createWidgets(self):
+    def create_widgets(self):
         # Menu
         menubar = Tkinter.Menu(self.root, tearoff=0)
         self.root.config(menu=menubar)
