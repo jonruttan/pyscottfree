@@ -189,7 +189,7 @@ class Saga:
     STATE_ERR = -1                  # Error
     STATE_NONE = 0                  # Uninitialised
     STATE_INIT = 1                  # Initialized
-    STATE_RUN  = 2                  # Database loaded, game running
+    STATE_RUN = 2                   # Database loaded, game running
     STATE_WAIT = 3                  # Waiting for external process
 
     def __init__(self, options=0, seed=None, name=None, file=None, greet=True):
@@ -224,7 +224,7 @@ class Saga:
         self.room_saved = [0] * 16      # Range unknown
         self.options = options          # Options flags set
         self.bit_flags = 0
-        self.redraw = False         # Update item window
+        self.redraw = False             # Update item window
         self.width = 80                 # 80 column display
 
         if options is not None:
