@@ -76,18 +76,18 @@ class MainWindow(wx.Frame):
         super(MainWindow, self).__init__(None, size=(640, 480))
         # self.statusbar.Hide()
         self.dirname = '.'
-        self.CreateInteriorWindowComponents()
-        self.CreateExteriorWindowComponents()
+        self.create_interior_window_components()
+        self.create_exterior_window_components()
 
         self.saga = saga
 
-    def OnControlKey(self, event):
+    def on_control_key(self, event):
         if event.GetKeyCode() == 13:
             self.saga.game_loop(2)
         else:
             event.Skip(True)
 
-    def CreateInteriorWindowComponents(self):
+    def create_interior_window_components(self):
         ''' Create "interior" window components. Three simple multiline text
         controls. '''
 
@@ -130,18 +130,18 @@ class MainWindow(wx.Frame):
         self.entry = entry
         self.entry.SetFocus()
 
-        entry.Bind(wx.EVT_CHAR, self.OnControlKey)
+        entry.Bind(wx.EVT_CHAR, self.on_control_key)
 
-    def CreateExteriorWindowComponents(self):
+    def create_exterior_window_components(self):
         ''' Create "exterior" window components, such as menu and status
             bar. '''
-        self.CreateMenu()
+        self.create_menu()
         self.CreateStatusBar()
         self.SetTitle()
 
-    def CreateMenu(self):
-        fileMenu = wx.Menu()
-        for id, label, helpText, handler in \
+    def create_menu(self):
+        file_menu = wx.Menu()
+        for id, label, help_text, handler in \
             [(wx.ID_ABOUT, '&About', 'Information about this program',
                 self.OnAbout),
              (wx.ID_OPEN, '&Open', 'Open a new database', self.OnOpen),
@@ -150,13 +150,13 @@ class MainWindow(wx.Frame):
              (None, None, None, None),
              (wx.ID_EXIT, 'E&xit', 'Terminate the program', self.OnExit)]:
             if id is None:
-                fileMenu.AppendSeparator()
+                file_menu.AppendSeparator()
             else:
-                item = fileMenu.Append(id, label, helpText)
+                item = file_menu.Append(id, label, help_text)
                 self.Bind(wx.EVT_MENU, handler, item)
 
         menuBar = wx.MenuBar()
-        menuBar.Append(fileMenu, '&File')  # Add the fileMenu to the MenuBar
+        menuBar.Append(file_menu, '&File')  # Add the fileMenu to the MenuBar
         self.SetMenuBar(menuBar)  # Add the menuBar to the Frame
 
     def SetTitle(self):
@@ -166,14 +166,14 @@ class MainWindow(wx.Frame):
 
     # Helper methods:
 
-    def defaultFileDialogOptions(self):
+    def file_dialog_options(self, options={}):
         ''' Return a dictionary with file dialog options that can be
             used in both the save file dialog as well as in the open
             file dialog. '''
         return dict(message='Choose a file', defaultDir=self.dirname,
                     wildcard='*.*')
 
-    def askUserForFilename(self, **dialogOptions):
+    def ask_for_filename(self, **dialogOptions):
         dialog = wx.FileDialog(self, **dialogOptions)
         if dialog.ShowModal() == wx.ID_OK:
             userProvidedFilename = True
@@ -187,7 +187,10 @@ class MainWindow(wx.Frame):
 
     # Event handlers:
 
-    def OnAbout(self, event):
+    def on_exit(self, event):
+        self.Close()  # Close the main window.
+
+    def on_about(self, event):
         dialog = wx.MessageDialog(
             self,
             self.saga.greeting(),
@@ -197,25 +200,21 @@ class MainWindow(wx.Frame):
         dialog.ShowModal()
         dialog.Destroy()
 
-    def OnExit(self, event):
-        self.Close()  # Close the main window.
-
-    def OnSave(self, event):
-        textfile = open(os.path.join(self.dirname, self.filename), 'w')
-        textfile.write(self.console.GetValue())
-        textfile.close()
-
-    def OnOpen(self, event):
-        if self.askUserForFilename(style=wx.OPEN, **self.defaultFileDialogOptions()):
+    def on_open(self, event):
+        if self.ask_for_filename(style=wx.OPEN, **self.file_dialog_options()):
             with open(os.path.join(self.dirname, self.filename), 'r') as file:
                 self.saga.load_database(file)
 
             self.saga.game_loop(2)
 
-    def OnSaveAs(self, event):
+    def on_restore(self, event):
         if self.askUserForFilename(defaultFile=self.filename, style=wx.SAVE,
                                    **self.defaultFileDialogOptions()):
-            self.OnSave(event)
+
+    def on_save(self, event):
+        textfile = open(os.path.join(self.dirname, self.filename), 'w')
+        textfile.write(self.console.GetValue())
+        textfile.close()
 
 if __name__ == '__main__':
     from pyscottfree import get_options
