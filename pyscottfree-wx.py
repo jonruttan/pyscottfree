@@ -141,18 +141,56 @@ class MainWindow(wx.Frame):
 
     def create_menu(self):
         file_menu = wx.Menu()
-        for id, label, help_text, handler in \
-            [(wx.ID_ABOUT, '&About', 'Information about this program',
-                self.OnAbout),
-             (wx.ID_OPEN, '&Open', 'Open a new database', self.OnOpen),
-             # (wx.ID_RESTORE, '&Restore', 'Restore the current game', self.OnSave),
-             (wx.ID_SAVE, '&Save', 'Save the current game', self.OnSave),
-             (None, None, None, None),
-             (wx.ID_EXIT, 'E&xit', 'Terminate the program', self.OnExit)]:
+        for id, label, help_text, handler, enabled in [
+            (
+                wx.ID_ABOUT,
+                '&About',
+                'Information about this program',
+                self.on_about,
+                True
+            ),
+            (
+                wx.ID_OPEN,
+                '&Open',
+                'Open a new database',
+                self.on_open,
+                True
+            ),
+            (
+                -1,
+                '&Restore',
+                'Restore the current game',
+                self.on_restore,
+                False
+            ),
+            (
+                wx.ID_SAVE,
+                '&Save',
+                'Save the current game',
+                self.on_save,
+                False
+            ),
+            (
+                wx.ID_SAVEAS,
+                '&Save',
+                'Save the current game',
+                self.on_save_as,
+                False
+            ),
+            (None, None, None, None, None),
+            (
+                wx.ID_EXIT,
+                'Q&uit',
+                'Terminate the program',
+                self.on_exit,
+                True
+            )
+        ]:
             if id is None:
                 file_menu.AppendSeparator()
             else:
                 item = file_menu.Append(id, label, help_text)
+                item.Enable(True)
                 self.Bind(wx.EVT_MENU, handler, item)
 
         menuBar = wx.MenuBar()
@@ -170,8 +208,13 @@ class MainWindow(wx.Frame):
         ''' Return a dictionary with file dialog options that can be
             used in both the save file dialog as well as in the open
             file dialog. '''
-        return dict(message='Choose a file', defaultDir=self.dirname,
-                    wildcard='*.*')
+        merged = dict(
+            message='Choose a file',
+            defaultDir=self.dirname,
+            wildcard='All files|*.*'
+        ).copy()
+        merged.update(options)
+        return merged
 
     def ask_for_filename(self, **dialogOptions):
         dialog = wx.FileDialog(self, **dialogOptions)
@@ -201,20 +244,43 @@ class MainWindow(wx.Frame):
         dialog.Destroy()
 
     def on_open(self, event):
-        if self.ask_for_filename(style=wx.OPEN, **self.file_dialog_options()):
+        args = self.file_dialog_options(dict(
+            style=wx.OPEN,
+            wildcard='Adventure Files (*.dat)|*.dat'
+                     '|All files (*.*)|*.*'
+        ))
+        if self.ask_for_filename(**args):
             with open(os.path.join(self.dirname, self.filename), 'r') as file:
                 self.saga.load_database(file)
 
             self.saga.game_loop(2)
 
     def on_restore(self, event):
-        if self.askUserForFilename(defaultFile=self.filename, style=wx.SAVE,
-                                   **self.defaultFileDialogOptions()):
+        args = self.file_dialog_options(dict(
+            style=wx.OPEN,
+            wildcard='Saved Games (*.sav)|*.sav'
+                     '|All files (*.*)|*.*'
+        ))
+        if self.ask_for_filename(**args):
+            with open(os.path.join(self.dirname, self.sage.filename), 'r') as file:
+                self.saga.load_database(file)
+
+            self.saga.game_loop(2)
 
     def on_save(self, event):
         textfile = open(os.path.join(self.dirname, self.filename), 'w')
         textfile.write(self.console.GetValue())
         textfile.close()
+
+    def on_save_as(self, event):
+        args = self.file_dialog_options(dict(
+            defaultFile=self.filename,
+            style=wx.SAVE,
+            wildcard='Saved Games (*.sav)|*.sav'
+                     '|All files (*.*)|*.*'
+        ))
+        if self.ask_for_filename(**args):
+            self.on_save(event)
 
 if __name__ == '__main__':
     from pyscottfree import get_options
