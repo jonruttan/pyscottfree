@@ -635,7 +635,7 @@ Adventure: {0.adventure}
             }
             if verb[1:].lower() in actions:
                 actions[verb[1:].lower()](noun)
-                return None
+                return False
 
         if(noun is None and len(verb) == 1):
             for k, v in self.shortforms.iteritems():
@@ -653,7 +653,7 @@ Adventure: {0.adventure}
 
         if verb_id == -1:
             self.output(self.string('unknown word'))
-            return None
+            return False
 
         self.noun_text = noun   # Needed by GET/DROP hack
         return (verb_id, noun_id)
@@ -1149,6 +1149,8 @@ Adventure: {0.adventure}
                 input = self.get_input()
                 if input is None:
                     break
+                if not input:
+                    continue
 
                 self.state = Saga.STATE_RUN
                 (verb, noun) = input
