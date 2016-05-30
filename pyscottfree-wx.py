@@ -124,7 +124,7 @@ class MainWindow(wx.Frame):
 
         console0.SetDefaultStyle(wx.TextAttr('FOREST GREEN', wx.WHITE))
         console.SetDefaultStyle(wx.TextAttr('MEDIUM BLUE', wx.WHITE))
-        entry.SetDefaultStyle(wx.TextAttr('MEDIUM RED', wx.WHITE))
+        # entry.SetDefaultStyle(wx.TextAttr('MEDIUM RED', wx.WHITE))
 
         self.win = console0, console, entry
         self.entry = entry
