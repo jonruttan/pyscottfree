@@ -468,8 +468,10 @@ Adventure: {0.adventure}
         return -1
 
     def load_database(self, file=None, name=None):
-        if file is None:
+        if file is None or self.state is Saga.STATE_NONE:
             return False
+
+        self.state = Saga.STATE_INIT
 
         if name is None:
             name = os.path.splitext(os.path.split(file.name)[1])[0]
@@ -534,9 +536,10 @@ Adventure: {0.adventure}
             print('Version {0:d}.{1:02d} of Adventure {2:d}\nLoad Complete.\n'
                   .format(self.version / 100, self.version % 100, self.adventure))
 
-        #if self.option(Saga.FLAG_DEBUGGING):
+        # if self.option(Saga.FLAG_DEBUGGING):
         #   self.dump()
 
+        self.clear_screen()
         self.redraw = True
         self.state = Saga.STATE_RUN
         return self
