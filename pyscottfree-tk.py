@@ -20,25 +20,22 @@
 #   2 of the License, or (at your option) any later version.
 #
 
+import os
+import sys
 import Tkinter
 import tkFileDialog
 import tkMessageBox
 from PIL import Image, ImageTk
-# import Image
-# import ImageTk
-import sys
-import os
-from zipfile import ZipFile
-from StringIO import StringIO
 
 sys.path.append(os.path.dirname(sys.argv[0]))
 
 from pyscottfree import Saga, DIR_SAVE
+from sagagfx import SagaGfx
 
 __author__ = 'Jon Ruttan'
 __copyright__ = 'Copyright (C) 2016 Jon Ruttan'
 __license__ = 'Distributed under the GNU software license'
-__version__ = '0.2.0'
+__version__ = '0.3.0'
 
 
 class TkSaga(Saga):
@@ -46,6 +43,7 @@ class TkSaga(Saga):
         self.root = Tkinter.Tk()
         self.root.title("PyScottFree")
         self.dirname = '.'
+        self.gfx = None
         self.image_id = None
         self.game_path = '.'
         self.save_path = os.path.join(os.path.expanduser(DIR_SAVE))
@@ -174,46 +172,40 @@ class TkSaga(Saga):
         Saga.look(self)
 
     def display_image(self, id):
+        if self.gfx is not None:
+            id = self.gfx.get_image_id(self, id)
+
         if not Saga.display_image(self, id):
             return
+
         self.image_id = id
-        if len(self.images) and id < len(self.images):
+
+        if self.gfx is not None and self.image_id < self.gfx.num_rooms + self.gfx.num_action89 + self.gfx.num_extended:
             self.root.update_idletasks()
-            self.canvas.image = ImageTk.PhotoImage(self.images[id].resize(
-                    (
-                        self.canvas.winfo_width() - 1,
-                        self.canvas.winfo_height() - 1
-                    ),
-                    self.resize_filter
-                ))
-            self.canvas.create_image(
-                0, 0,
-                anchor=Tkinter.NW,
-                image=self.canvas.image
+            size = (
+                self.canvas.winfo_width() - 1,
+                self.canvas.winfo_height() - 1,
             )
+            pilImage = self.gfx.images[self.image_id].resize(size)
+            self.canvas.image = ImageTk.PhotoImage(pilImage)
+            self.canvas.create_image(0, 0, anchor=Tkinter.NW, image=self.canvas.image)
 
     def load_database(self, file=None):
         if not Saga.load_database(self, file):
             return False
 
         image_path = os.path.split(file.name)[0]
-        filename = self.name + '.zip'
-        path = os.path.join(image_path, filename)
         self.images = []
+
+        filename = self.name + '.gfx'
+        path = os.path.join(image_path, filename)
         if os.path.exists(path):
             self.canvas.pack(
                 side=Tkinter.LEFT,
                 fill=Tkinter.BOTH,
                 expand=Tkinter.YES
             )
-            with ZipFile(path, 'r') as gfx:
-                ext = ('.bmp', '.gif', '.png')
-                for filename in [
-                    f for f in sorted(gfx.namelist())
-                        if os.path.splitext(f)[1].lower() in ext
-                ]:
-                    image = Image.open(StringIO(gfx.read(filename)))
-                    self.images.append(image)
+            self.gfx = SagaGfx(path).read()
         else:
             self.canvas.pack_forget()
 
