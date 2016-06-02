@@ -966,9 +966,6 @@ Adventure: {0.adventure}
                     # SAGA draw picture n
                     # Spectrum Seas of Blood - start combat ?
                     # Poking this into older spectrum games causes a crash
-                    if self.option(Saga.FLAG_DEBUGGING):
-                        print('Display Image %d' % param_id)
-
                     self.display_image(len(self.rooms) - 1 + params[param_id])
                     param_id += 1
                 else:
