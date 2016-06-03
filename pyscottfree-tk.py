@@ -56,6 +56,13 @@ class TkSaga(Saga):
         Saga.__init__(self, options, seed, name, file, greet)
         self.width = self.win[0]['width']
 
+    def greeting(self):
+        return '''PyScottFreeTK, A Scott Adams game driver in Python.
+Release {0}, {1}.
+''' \
+                .format(__version__, __copyright__, __license__) \
+                + Saga.greeting(self)
+
     def create_widgets(self):
         # Menu
         menubar = Tkinter.Menu(self.root, tearoff=0)
