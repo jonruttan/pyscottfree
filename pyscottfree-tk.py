@@ -35,7 +35,7 @@ from sagagfx import SagaGfx
 __author__ = 'Jon Ruttan'
 __copyright__ = 'Copyright (C) 2016 Jon Ruttan'
 __license__ = 'Distributed under the GNU software license'
-__version__ = '0.3.0'
+__version__ = '0.3.1'
 
 
 class TkSaga(Saga):
@@ -183,8 +183,8 @@ class TkSaga(Saga):
         if self.gfx is not None and self.image_id < self.gfx.num_rooms + self.gfx.num_action89 + self.gfx.num_extended:
             self.root.update_idletasks()
             size = (
-                self.canvas.winfo_width() - 1,
-                self.canvas.winfo_height() - 1,
+                self.canvas.winfo_width() - 1 or self.gfx.size[0],
+                self.canvas.winfo_height() - 1 or self.gfx.size[1],
             )
             pilImage = self.gfx.images[self.image_id].resize(size)
             self.canvas.image = ImageTk.PhotoImage(pilImage)
