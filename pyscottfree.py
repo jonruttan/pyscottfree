@@ -32,7 +32,7 @@ from functools import reduce
 __author__ = 'Jon Ruttan'
 __copyright__ = 'Copyright (C) 2016 Jon Ruttan'
 __license__ = 'Distributed under the GNU software license'
-__version__ = '0.8.6'
+__version__ = '0.8.7'
 
 DIR_APP = 'scottfree'
 ENV_FILE = 'SCOTTFREE_PATH'
@@ -193,9 +193,27 @@ class Saga:
     STATE_WAIT = 3                  # Waiting for external process
 
     def __init__(self, options=0, seed=None, name=None, file=None, greet=True):
+        # Initialize the random number generator, None will use the system time
+        random.seed(seed)
+
         self.name = name
         self.state = Saga.STATE_NONE
 
+        self.options = options          # Options flags set
+        self.width = 80                 # 80 column display
+        if options is not None:
+            # Terminal width
+            if options & Saga.FLAG_TRS80_STYLE:
+                self.width = 64
+                self.win_height = (11, 13)
+
+        # NOTE: This will call reset
+        self.load_database(file)
+
+        if greet:
+            self.output(self.greeting())
+
+    def reset(self):
         # From Header
         self.unknown1 = None
         self.max_carry = None
@@ -222,16 +240,8 @@ class Saga:
         self.current_counter = 0
         self.saved_room = 0
         self.room_saved = [0] * 16      # Range unknown
-        self.options = options          # Options flags set
         self.bit_flags = 0
         self.redraw = False             # Update item window
-        self.width = 80                 # 80 column display
-
-        if options is not None:
-            # Terminal width
-            if options & Saga.FLAG_TRS80_STYLE:
-                self.width = 64
-                self.win_height = (11, 13)
 
         self.last_synonym = None
 
@@ -311,14 +321,7 @@ class Saga:
             'light dim': "Your light is growing dim. "
         }
 
-        # Initialize the random number generator, None will use the system time
-        random.seed(seed)
-
         self.state = Saga.STATE_INIT
-        self.load_database(file)
-
-        if greet:
-            self.output(self.greeting())
 
     def greeting(self):
         return '''PyScottFree, A Scott Adams game driver in Python.
@@ -468,10 +471,10 @@ Adventure: {0.adventure}
         return -1
 
     def load_database(self, file=None, name=None):
-        if file is None or self.state is Saga.STATE_NONE:
+        if file is None:
             return False
 
-        self.state = Saga.STATE_INIT
+        self.reset()
 
         if name is None:
             name = os.path.splitext(os.path.split(file.name)[1])[0]
