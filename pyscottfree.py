@@ -359,10 +359,10 @@ Treasure Room: {0.treasure_room}
 Version: {0.version}
 Adventure: {0.adventure}
 '''.format(self,
-            ', \n'.join(map(lambda obj: "\t"+obj.to_string(), self.items)),
-            ', \n'.join(map(lambda obj: "\t"+obj.to_string(), self.actions)),
-            ', \n'.join(map(lambda obj: "\t"+obj.to_string(), self.rooms)),
-            ', \n'.join(map(lambda s: "\t"+s, self.messages)),
+            ', \n'.join(["\t"+obj.to_string() for obj in self.items]),
+            ', \n'.join(["\t"+obj.to_string() for obj in self.actions]),
+            ', \n'.join(["\t"+obj.to_string() for obj in self.rooms]),
+            ', \n'.join(["\t"+s for s in self.messages]),
            ))
 
     def do_exit(self, errno=0, errstr=None):
@@ -425,7 +425,7 @@ Adventure: {0.adventure}
 
     def input_read(self, str='', win=1):
         try:
-            return raw_input(str)
+            return input(str)
         except(KeyboardInterrupt, EOFError):
             self.aborted()
 
@@ -572,7 +572,7 @@ Adventure: {0.adventure}
         exits = len(exits) and ', '.join(exits) or self.string('none')
         self.output(self.string('exits').format(exits), 0, False)
 
-        items = map(lambda item: item.text, filter(lambda item: item.location == self.player_room, self.items))
+        items = [item.text for item in [item for item in self.items if item.location == self.player_room]]
         if len(items):
             separator = self.string('list separator', Saga.FLAG_TRS80_STYLE)
             lines = [self.string('also see', Saga.FLAG_YOUARE)]
@@ -644,7 +644,7 @@ Adventure: {0.adventure}
                 return False
 
         if(noun is None and len(verb) == 1):
-            for k, v in self.shortforms.iteritems():
+            for k, v in six.iteritems(self.shortforms):
                 if k == verb.lower():
                     verb = v
                     break
@@ -857,10 +857,7 @@ Adventure: {0.adventure}
                         self.output(self.string('well done'))
                         self.done_game()
                 elif act == 66:
-                    carry = map(lambda item: item.text, filter(
-                        lambda item: item.location == Saga.LOC_CARRIED,
-                        self.items)
-                    )
+                    carry = [item.text for item in [item for item in self.items if item.location == Saga.LOC_CARRIED]]
                     if len(carry):
                         carry = self.string(
                             'list separator',
@@ -1253,7 +1250,7 @@ def main(argv, obj_type=Saga):
     try:
         filename = args[0]
     except:
-        filename = raw_input('Filename: ').strip()
+        filename = input('Filename: ').strip()
 
     filepath = os.getenv(ENV_FILE, DIR_APP)
     if filepath is None:

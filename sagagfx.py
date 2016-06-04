@@ -310,7 +310,7 @@ class SagaGfx:
             i += j
 
         # pprint(bitmap)
-        bytes = ''.join(chr(x) for x in bitmap)
+        bytes = ''.join(chr(x) for x in bitmap).encode()
         image = Image.frombytes('P', self.size, bytes)
         image.putpalette(palette)
 

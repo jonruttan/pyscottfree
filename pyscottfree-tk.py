@@ -22,15 +22,23 @@
 
 import os
 import sys
-import Tkinter
-import tkFileDialog
-import tkMessageBox
-from PIL import Image, ImageTk
-
-sys.path.append(os.path.dirname(sys.argv[0]))
 
 from pyscottfree import Saga, DIR_SAVE
 from sagagfx import SagaGfx
+from PIL import Image, ImageTk
+
+if sys.version_info[0] > 2:
+    import tkinter
+    import tkinter.filedialog
+    import tkinter.messagebox
+else:
+    import Tkinter as tkinter
+    import tkFileDialog as filedialog
+    import tkMessageBox as messagebox
+    tkinter.filedialog = filedialog
+    tkinter.messagebox = messagebox
+
+sys.path.append(os.path.dirname(sys.argv[0]))
 
 __author__ = 'Jon Ruttan'
 __copyright__ = 'Copyright (C) 2016 Jon Ruttan'
@@ -40,7 +48,7 @@ __version__ = '0.3.1'
 
 class TkSaga(Saga):
     def __init__(self, options=0, seed=None, name=None, file=None, greet=True):
-        self.root = Tkinter.Tk()
+        self.root = tkinter.Tk()
         self.root.title("PyScottFree")
         self.dirname = '.'
         self.gfx = None
@@ -65,9 +73,9 @@ Release {0}, {1}.
 
     def create_widgets(self):
         # Menu
-        menubar = Tkinter.Menu(self.root, tearoff=0)
+        menubar = tkinter.Menu(self.root, tearoff=0)
         self.root.config(menu=menubar)
-        self.file_menu = file_menu = Tkinter.Menu(menubar, tearoff=0)
+        self.file_menu = file_menu = tkinter.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="File", underline=0, menu=file_menu)
         file_menu.add_command(label="Open", command=self.on_open)
         file_menu.add_command(label="Restore Game", command=self.on_open_game)
@@ -81,50 +89,50 @@ Release {0}, {1}.
 
         file_menu.entryconfig(
             file_menu.index('Restore Game'),
-            state=Tkinter.DISABLED
+            state=tkinter.DISABLED
         )
         file_menu.entryconfig(
             file_menu.index('Save Game'),
-            state=Tkinter.DISABLED
+            state=tkinter.DISABLED
         )
         file_menu.entryconfig(
             file_menu.index('Save Game As'),
-            state=Tkinter.DISABLED
+            state=tkinter.DISABLED
         )
 
-        help_menu = Tkinter.Menu(menubar, tearoff=0)
+        help_menu = tkinter.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Help", underline=0, menu=help_menu)
         help_menu.add_command(label="About", command=self.on_about)
 
         # Frame
-        frame = Tkinter.Frame(self.root)
-        frame.pack(fill=Tkinter.BOTH, expand=Tkinter.YES)
+        frame = tkinter.Frame(self.root)
+        frame.pack(fill=tkinter.BOTH, expand=tkinter.YES)
 
         # Win0 - description - top,top-left
-        win0 = Tkinter.Text(frame, width=40, height=10)
-        win0.pack(side=Tkinter.LEFT, fill=Tkinter.BOTH, expand=Tkinter.YES)
+        win0 = tkinter.Text(frame, width=40, height=10)
+        win0.pack(side=tkinter.LEFT, fill=tkinter.BOTH, expand=tkinter.YES)
 
         # Canvas - images - upper-right
-        self.canvas = Tkinter.Canvas(frame, width=256, height=96)
-        frame = Tkinter.Frame(self.root, relief=Tkinter.SUNKEN)
-        frame.pack(side=Tkinter.TOP, fill=Tkinter.BOTH, expand=Tkinter.YES)
+        self.canvas = tkinter.Canvas(frame, width=256, height=96)
+        frame = tkinter.Frame(self.root, relief=tkinter.SUNKEN)
+        frame.pack(side=tkinter.TOP, fill=tkinter.BOTH, expand=tkinter.YES)
 
         # Win1 - transcript - middle
-        win1 = Tkinter.Text(frame, width=80, height=14)
-        win1.pack(side=Tkinter.LEFT, fill=Tkinter.BOTH, expand=Tkinter.YES)
-        scrollbar = Tkinter.Scrollbar(frame)
-        scrollbar.pack(side=Tkinter.RIGHT, fill=Tkinter.Y)
+        win1 = tkinter.Text(frame, width=80, height=14)
+        win1.pack(side=tkinter.LEFT, fill=tkinter.BOTH, expand=tkinter.YES)
+        scrollbar = tkinter.Scrollbar(frame)
+        scrollbar.pack(side=tkinter.RIGHT, fill=tkinter.Y)
         win1.config(yscrollcommand=scrollbar.set)
         scrollbar.config(command=win1.yview)
         win1.bind('<Key>', lambda e: 'break')  # ignore all key presses
 
         # Win2 - text entry - bottom
-        frame = Tkinter.Frame(self.root)
-        frame.pack(fill=Tkinter.X)
-        label = Tkinter.Label(frame, text="Tell me what to do?")
-        label.pack(side=Tkinter.LEFT)
-        win2 = Tkinter.Entry(frame)
-        win2.pack(fill=Tkinter.X)
+        frame = tkinter.Frame(self.root)
+        frame.pack(fill=tkinter.X)
+        label = tkinter.Label(frame, text="Tell me what to do?")
+        label.pack(side=tkinter.LEFT)
+        win2 = tkinter.Entry(frame)
+        win2.pack(fill=tkinter.X)
 
         # Set the Window colours
         win0.tag_configure('WIN0', background='white', foreground='green4')
@@ -151,7 +159,7 @@ Release {0}, {1}.
     def clear_screen(self):
         Saga.clear_screen(self)
         # self.win[0].delete('1.0', Tkinter.END)
-        self.win[1].delete('1.0', Tkinter.END)
+        self.win[1].delete('1.0', tkinter.END)
         # self.win[2].delete(0, Tkinter.END)
         # self.look()
 
@@ -170,12 +178,12 @@ Release {0}, {1}.
 
     def input(self, string='', win=1):
         string = Saga.input(self, string, win)
-        self.entry.delete(0, Tkinter.END)
+        self.entry.delete(0, tkinter.END)
         self.output(string + '\n')
         return string
 
     def look(self):
-        self.win[0].delete('1.0', Tkinter.END)
+        self.win[0].delete('1.0', tkinter.END)
         Saga.look(self)
 
     def display_image(self, id):
@@ -195,7 +203,7 @@ Release {0}, {1}.
             )
             pilImage = self.gfx.images[self.image_id].resize(size)
             self.canvas.image = ImageTk.PhotoImage(pilImage)
-            self.canvas.create_image(0, 0, anchor=Tkinter.NW, image=self.canvas.image)
+            self.canvas.create_image(0, 0, anchor=tkinter.NW, image=self.canvas.image)
 
     def load_database(self, file=None):
         if not Saga.load_database(self, file):
@@ -208,9 +216,9 @@ Release {0}, {1}.
         path = os.path.join(image_path, filename)
         if os.path.exists(path):
             self.canvas.pack(
-                side=Tkinter.LEFT,
-                fill=Tkinter.BOTH,
-                expand=Tkinter.YES
+                side=tkinter.LEFT,
+                fill=tkinter.BOTH,
+                expand=tkinter.YES
             )
             self.gfx = SagaGfx(path).read()
         else:
@@ -218,14 +226,14 @@ Release {0}, {1}.
 
         self.file_menu.entryconfig(
             self.file_menu.index('Restore Game'),
-            state=Tkinter.ACTIVE)
+            state=tkinter.ACTIVE)
         self.file_menu.entryconfig(
             self.file_menu.index('Save Game'),
-            state=Tkinter.ACTIVE
+            state=tkinter.ACTIVE
         )
         self.file_menu.entryconfig(
             self.file_menu.index('Save Game As'),
-            state=Tkinter.ACTIVE
+            state=tkinter.ACTIVE
         )
 
     def on_input(self, event):
@@ -248,7 +256,7 @@ Release {0}, {1}.
             ('Adventure Files', '*.dat'),
             ('All files', '*.*'),
         ]
-        path = tkFileDialog.askopenfilename(
+        path = tkinter.filedialog.askopenfilename(
             parent=self.root,
             filetypes=formats
         )
@@ -262,7 +270,7 @@ Release {0}, {1}.
             ('Saved Games', '*.sav'),
             ('All files', '*.*'),
         ]
-        path = tkFileDialog.askopenfilename(
+        path = tkinter.filedialog.askopenfilename(
             parent=self.root,
             filetypes=formats,
             initialfile=save_path[1],
@@ -283,7 +291,7 @@ Release {0}, {1}.
             ('All files', '*.*'),
         ]
         save_path = os.path.split(self.save_path)
-        path = tkFileDialog.asksaveasfilename(
+        path = tkinter.filedialog.asksaveasfilename(
             parent=self.root,
             filetypes=formats,
             initialfile=save_path[1],
@@ -296,7 +304,7 @@ Release {0}, {1}.
         self.save_path = path
 
     def on_about(self):
-        tkMessageBox.showinfo('About PyScottFree', self.greeting())
+        tkinter.messagebox.showinfo('About PyScottFree', self.greeting())
 
 if __name__ == '__main__':
     from pyscottfree import get_options
