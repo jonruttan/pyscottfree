@@ -71,56 +71,60 @@ Following the header is a list of game actions. Each is of the form:
 ### Actions
 
 
-|  Value | Meaning                                                          |
-|-------:|:-----------------------------------------------------------------|
-|      0 | Does nothing                                                     |
-|   1-51 | Print message 0-50. Some drivers add a space some add a newline. |
-|     52 | Get item <arg>. Checks if you can carry it first
-|     53 | Drops item <arg>
-|     54 | Moves to room <arg>
-|     55 | Item <arg> is removed from the game (put in room 0)
-|     56 | The darkness flag is set
-|     57 | The darkness flag is cleared
-|     58 | Bitflag <arg> is set
-|     59 | The same as 55 (it seems - I'm cautious about this)
-|     60 | BitFlag <arg> is cleared
-|     61 | Death. Dark flag cleared, player moved to last room
-|     62 | Item <arg> put in room <arg>
-|     63 | Game over.
-|     64 | Describe room
-|     65 | Score
-|     66 | Inventory
-|     67 | BitFlag 0 is set
-|     68 | BitFlag 0 is cleared
-|     69 | Refill lamp (?)
-|     70 | Screen is cleared. This varies by driver from no effect upwards
-|     71 | Saves the game. Choices of filename etc depend on the driver alone.
-|     72 | Swap item <arg1> and item <arg2> locations
-|     73 | Continue with next line (the next line starts verb 0 noun 0)
-|     74 | Take item <arg> - no check is done too see if it can be carried.
-|     75 | Put item <arg1> with item <arg2> - [^4]
-|     76 | Look (same as 64 ?? - check)
-|     77 | Decrement current counter. Will not go below 0
-|     78 | Print current counter value. [^5]
-|     79 | Set current counter value
-|     80 | Swap location with current location-swap flag
-|     81 | Select a counter. Current counter is swapped with backup counter <arg>
-|     82 | Add <arg> to current counter
-|     83 | Subtract <arg> from current counter
-|     84 | Echo noun player typed without CR
-|     85 | Echo the noun the player typed
-|     86 | CR
-|     87 | Swap current location value with backup location-swap value <arg>
-|     88 | Wait 2 seconds
-|     89 | SAGA - draw picture <n> [^6] Older spectrum driver - crashes
-| 90-101 | Unused
-|   102+ | Print message 51-99
+|  Value | Meaning                                                           |
+|-------:|:------------------------------------------------------------------|
+|      0 | Does nothing                                                      |
+|   1-51 | Print message 0-50. Some drivers add a space some add a newline.  |
+|     52 | Get item <arg>. Checks if you can carry it first                  |
+|     53 | Drops item <arg>                                                  |
+|     54 | Moves to room <arg>                                               |
+|     55 | Item <arg> is removed from the game (put in room 0)               |
+|     56 | The darkness flag is set                                          |
+|     57 | The darkness flag is cleared                                      |
+|     58 | Bitflag <arg> is set                                              |
+|     59 | The same as 55 (it seems - I'm cautious about this)               |
+|     60 | BitFlag <arg> is cleared                                          |
+|     61 | Death. Dark flag cleared, player moved to last room               |
+|     62 | Item <arg> put in room <arg>                                      |
+|     63 | Game over                                                         |
+|     64 | Describe room                                                     |
+|     65 | Score                                                             |
+|     66 | Inventory                                                         |
+|     67 | BitFlag 0 is set                                                  |
+|     68 | BitFlag 0 is cleared                                              |
+|     69 | Refill lamp (?)                                                   |
+|     70 | Screen is cleared [^4]                                            |
+|     71 | Saves the game [^5]                                               |
+|     72 | Swap item <arg1> and item <arg2> locations                        |
+|     73 | Continue with next line (the next line starts verb 0 noun 0)      |
+|     74 | Take item <arg>. No check is done too see if it can be carried.   |
+|     75 | Put item <arg1> with item <arg2> - [^6]                           |
+|     76 | Look (same as 64 ?? - check)                                      |
+|     77 | Decrement current counter. Will not go below 0                    |
+|     78 | Print current counter value. [^7]                                 |
+|     79 | Set current counter value                                         |
+|     80 | Swap location with current location-swap flag                     |
+|     81 | Select a counter. Current is swapped with backup counter <arg>.   |
+|     82 | Add <arg> to current counter                                      |
+|     83 | Subtract <arg> from current counter                               |
+|     84 | Echo noun player typed without CR                                 |
+|     85 | Echo the noun the player typed                                    |
+|     86 | CR                                                                |
+|     87 | Swap current location value with backup location-swap value <arg> |
+|     88 | Wait 2 seconds                                                    |
+|     89 | *SAGA* - draw picture <n> [^6] [^7] [^8]                          |
+| 90-101 | Unused                                                            |
+|   102+ | Print message 51-99                                               |
+
+[^4]: This varies by driver from no effect upwards.
+[^5]: Choices of filename etc depend on the driver alone.
 
 [^4]: Not certain seems to do this from examination of Claymorgue.
 [^5]: Some drivers only cope with 0-99 apparently
 [^6]: Actually <n+number of rooms>, as each Look() draws picture <room number>
-      automatically. 
-	Spectrum Seas of Blood - seems to start Fighting Fantasy combat mode
+      automatically.
+[^7]: Older spectrum driver - crashes.
+[^8]: Spectrum Seas of Blood - seems to start Fighting Fantasy combat mode.
 
 
 ## Words
