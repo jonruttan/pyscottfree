@@ -112,19 +112,18 @@ Following the header is a list of game actions. Each is of the form:
 |     86 | CR                                                                |
 |     87 | Swap current location value with backup location-swap value <arg> |
 |     88 | Wait 2 seconds                                                    |
-|     89 | *SAGA* - draw picture <n> [^6] [^7] [^8]                          |
+|     89 | *SAGA* - draw picture <n> [^8] [^9] [^10]                          |
 | 90-101 | Unused                                                            |
 |   102+ | Print message 51-99                                               |
 
-[^4]: This varies by driver from no effect upwards.
-[^5]: Choices of filename etc depend on the driver alone.
-
-[^4]: Not certain seems to do this from examination of Claymorgue.
-[^5]: Some drivers only cope with 0-99 apparently
-[^6]: Actually <n+number of rooms>, as each Look() draws picture <room number>
+[^4]: This varies by driver from no effect upwards.  
+[^5]: Choices of filename etc depend on the driver alone.  
+[^6]: Not certain seems to do this from examination of Claymorgue.  
+[^7]: Some drivers only cope with 0-99 apparently.  
+[^8]: Actually <n+number of rooms>, as each Look() draws picture <room number>
       automatically.
-[^7]: Older spectrum driver - crashes.
-[^8]: Spectrum Seas of Blood - seems to start Fighting Fantasy combat mode.
+[^9]: Older spectrum driver - crashes.  
+[^10]: Spectrum Seas of Blood - seems to start Fighting Fantasy combat mode.  
 
 
 ## Words
