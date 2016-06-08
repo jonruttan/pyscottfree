@@ -29,10 +29,13 @@ import textwrap
 
 from functools import reduce
 
+if sys.version_info[0] == 2:
+    input = raw_input
+
 __author__ = 'Jon Ruttan'
 __copyright__ = 'Copyright (C) 2016 Jon Ruttan'
 __license__ = 'Distributed under the GNU software license'
-__version__ = '0.8.7'
+__version__ = '0.8.8'
 
 DIR_APP = 'scottfree'
 ENV_FILE = 'SCOTTFREE_PATH'
@@ -644,7 +647,7 @@ Adventure: {0.adventure}
                 return False
 
         if(noun is None and len(verb) == 1):
-            for k, v in six.iteritems(self.shortforms):
+            for (k, v) in self.shortforms.items():
                 if k == verb.lower():
                     verb = v
                     break
