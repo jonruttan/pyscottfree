@@ -29,14 +29,12 @@ import signal
 __author__ = 'Jon Ruttan'
 __copyright__ = 'Copyright (C) 2016 Jon Ruttan'
 __license__ = 'Distributed under the GNU software license'
-__version__ = '0.1.4'
+__version__ = '0.1.5'
 
 
 class CursesSaga(Saga):
     def __init__(self, options=0, seed=None, name=None, file=None, greet=True):
         self.curses_up = False           # Curses up
-
-        Saga.__init__(self, options, seed, name, file, False)
 
         self.win = [None, None]
         self.win_height = (10, 14)      # Height of the curses windows
@@ -48,10 +46,10 @@ class CursesSaga(Saga):
         signal.signal(signal.SIGQUIT, signal.SIG_IGN)
         signal.signal(signal.SIGTSTP, signal.SIG_IGN)
 
-        self.win[0] = curses.newwin(self.win_height[0], self.width, 0, 0)
+        self.win[0] = curses.newwin(self.win_height[0], 0, 0, 0)
         self.win[1] = curses.newwin(
             self.win_height[1],
-            self.width,
+            0,
             self.win_height[0],
             0
         )
@@ -62,6 +60,10 @@ class CursesSaga(Saga):
         curses.noecho()
         curses.cbreak()
         self.win[1].move(self.win_height[1] - 1, 0)
+
+        Saga.__init__(self, options, seed, name, file, False)
+        self.width = self.win[0].getmaxyx()[1]
+
         self.output(self.greeting())
 
     def aborted(self, signum, frame):
